@@ -1,0 +1,22 @@
+# jbrowse local runtime files
+#
+# These are files jbrowse looks for next to the script/executable,
+# but they should not be committed.
+
+# Real config: contains Jellyfin URL/login/password.
+# Commit jbrowse.conf.example instead.
+jbrowse.conf
+
+# Local device id / state.
+jbrowse.state
+
+# Local library cache: can contain private media names/paths.
+jbrowse.items.json
+jbrowse.items.json.tmp
+
+# Local style override. Commit named theme files instead if you want them versioned.
+jbrowse.tcss
+
+# Python local build/cache noise.
+__pycache__/
+*.py[cod]

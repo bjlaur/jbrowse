@@ -1,0 +1,36 @@
+# jbrowse.conf.example
+#
+# Copy this to jbrowse.conf and edit it.
+# Do not commit your real jbrowse.conf; it contains your Jellyfin password.
+
+[jellyfin]
+url = http://127.0.0.1:8096
+username = bryan
+password = your-password
+
+[library]
+# Comma-separated Jellyfin item types to load.
+types = Movie,Episode,Video,MusicVideo
+
+[ui]
+# Sort mode can be:
+#   added     = recently added
+#   played    = last played
+#   premiere  = premiere date
+#   name      = name
+#   series    = series order
+sort_mode = added
+
+# true = descending / down arrow
+# false = ascending / up arrow
+sort_desc = true
+
+# 0 means unlimited. Any positive number caps how many matched items are rendered.
+max_display_items = 300
+
+# title or filename
+display_mode = title
+
+[style]
+# Optional. Relative paths are relative to this jbrowse.conf file.
+# path = jbrowse.tcss
