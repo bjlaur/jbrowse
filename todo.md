@@ -1,6 +1,6 @@
 # todo.md
 
-## jbrowse TODO list, post-0.0.24
+## jbrowse TODO list, post-0.0.25
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
@@ -14,6 +14,7 @@ The current baseline already has:
 - Batman themes
 - basic named page state for `browser`, `help`, and `info`
 - simple `jbrowse.items.json` cache
+- subtitle picker from the info page
 - current config/example/gitignore/docs
 
 Use this file as the roadmap and release-history checklist.
@@ -42,39 +43,12 @@ Shift+Enter  direct playback
 
 ## Completed
 
-- [x] ~~Create `CHANGELOG.md` with compact release notes and testing summaries.~~ Added during `0.0.25-dev`.
+- [x] ~~Subtitle selection from info screen.~~ Released in `0.0.25`.
+- [x] ~~Create `CHANGELOG.md` with compact release notes and testing summaries.~~ Released in `0.0.25`.
 
 ---
 
-## 1. Fix subtitle selection from info screen
-
-Goal: make the experimental subtitle picker actually control subtitles in `mpv`.
-
-Current state:
-
-- The info-page picker opens with `s`.
-- Runtime choices exist for `auto`, `none`, and reported Jellyfin subtitle streams.
-- Manual testing found selected subtitles do not yet work correctly in `mpv`.
-- Overlay focus after returning from `mpv` improved after disabling search input, but still feels hinky and needs another pass.
-- No regressions were noticed in normal browsing/playback.
-
-Next checks:
-
-- Inspect the actual `mpv` command behavior for Jellyfin subtitle streams.
-- Compare the redacted `DEBUG mpv command` line for `auto`, `none`, and a selected subtitle.
-- Revisit focus handling when returning from foreground `mpv` to an info/subtitle overlay.
-- Verify whether `--sid=N` can work with the current static Jellyfin stream URL.
-- If needed, switch to a different simple mpv argument or Jellyfin stream URL parameter.
-- Keep this separate from mpv IPC, background playback, and Jellyfin playback reporting.
-
-Manual release check:
-
-- On an info panel for an item with multiple subtitles, press `s`.
-- Try `auto`, `none`, and a real subtitle track; confirm `mpv` behaves correctly.
-
----
-
-## 2. Better help text / key map cleanup
+## 1. Better help text / key map cleanup
 
 Goal: keep help readable as controls grow.
 
@@ -95,7 +69,7 @@ Current help is acceptable, but every new feature should update the help page in
 
 ---
 
-## 3. Configurable mpv command by format
+## 2. Configurable mpv command by format
 
 Goal: allow practical per-format mpv launch command tuning from `jbrowse.conf`.
 
@@ -138,7 +112,7 @@ Implementation notes:
 
 ---
 
-## 4. Build files and Arch packaging skeleton
+## 3. Build files and Arch packaging skeleton
 
 Goal: add the boring-but-useful project files that make `jbrowse` easier to install, build, and package.
 
@@ -169,7 +143,7 @@ Implementation notes:
 
 ---
 
-## 5. Non-blocking refresh
+## 4. Non-blocking refresh
 
 Current behavior:
 
@@ -218,7 +192,7 @@ Do not add periodic refresh until manual non-blocking refresh is solid.
 
 ---
 
-## 6. Periodic refresh
+## 5. Periodic refresh
 
 After non-blocking refresh exists, consider config:
 
@@ -243,7 +217,7 @@ Requirements:
 
 ---
 
-## 7. Refresh after playback stops
+## 6. Refresh after playback stops
 
 After refresh is backgrounded, consider config:
 
@@ -261,7 +235,7 @@ This should wait until non-blocking refresh is implemented.
 
 ---
 
-## 8. PlaybackManager
+## 7. PlaybackManager
 
 Big architecture piece.
 
@@ -298,7 +272,7 @@ Do not cram all player logic into `BrowseApp`. `BrowseApp` should ask the Playba
 
 ---
 
-## 9. Spawn mpv in background
+## 8. Spawn mpv in background
 
 Current behavior:
 
@@ -334,7 +308,7 @@ Do this before Now Playing, mpv log page, or Jellyfin progress reporting.
 
 ---
 
-## 10. mpv output/log page
+## 9. mpv output/log page
 
 Hotkey idea:
 
@@ -371,7 +345,7 @@ Home/End
 
 ---
 
-## 11. mpv IPC
+## 10. mpv IPC
 
 Needed for real playback control.
 
@@ -411,7 +385,7 @@ When mpv IPC is implemented, update any stale-string / feature-guard checks for 
 
 ---
 
-## 12. Replace-current-playback prompt
+## 11. Replace-current-playback prompt
 
 If something is already playing and the user tries to play another item, ask first.
 
@@ -441,7 +415,7 @@ Jellyfin playback reporting may be cleaner if the old session is explicitly stop
 
 ---
 
-## 13. Now Playing page
+## 12. Now Playing page
 
 This should be the info page plus live playback state, not a separate tiny status page.
 
@@ -486,7 +460,7 @@ Needs:
 
 ---
 
-## 14. Pause / stop / seek controls
+## 13. Pause / stop / seek controls
 
 Possible controls:
 
@@ -504,7 +478,7 @@ Do not assume all modified keys work in every terminal. Test real key events bef
 
 ---
 
-## 15. Jellyfin playback reporting
+## 14. Jellyfin playback reporting
 
 After mpv IPC exists, implement Jellyfin playback reporting.
 
@@ -537,7 +511,7 @@ When this is implemented, update any stale-string / feature-guard checks for Jel
 
 ---
 
-## 16. Final playback position save
+## 15. Final playback position save
 
 When mpv exits or item is replaced:
 
@@ -555,7 +529,7 @@ Goal:
 
 ---
 
-## 17. Static bitrate selection
+## 16. Static bitrate selection
 
 Possible quality options:
 
@@ -578,7 +552,7 @@ Ctrl+B = cycle quality
 Bottom bar idea:
 
 ```text
-quality: direct
+subtitle: English - SUBRIP | quality: direct | style: jbrowse-ink.tcss
 ```
 
 Implementation notes:
@@ -586,10 +560,11 @@ Implementation notes:
 - Direct mode can keep the current static stream URL behavior.
 - Bitrate-limited modes likely need Jellyfin transcoding URL parameters.
 - Test against the user's actual Jellyfin server.
+- Keep playback choices such as subtitle, quality, and later audio selection visible in the bottom status bar.
 
 ---
 
-## 18. Change bitrate while playing
+## 17. Change bitrate while playing
 
 Not truly seamless.
 
@@ -610,7 +585,7 @@ Needs:
 
 ---
 
-## 19. Audio picker
+## 18. Audio picker
 
 After subtitle picker and mpv IPC, add audio track selection.
 
@@ -634,7 +609,7 @@ Robust implementation should use mpv IPC `track-list`.
 
 ---
 
-## 20. Split the giant file
+## 19. Split the giant file
 
 Do this later, after the app stabilizes further.
 
@@ -662,7 +637,7 @@ Suggested timing:
 
 ---
 
-## 21. Stabilize name / packaging
+## 20. Stabilize name / packaging
 
 Eventually settle on:
 
@@ -687,25 +662,24 @@ Do this after the core architecture is less volatile.
 ## Suggested order from here
 
 ```text
-1. Fix subtitle selection from info screen
-2. Configurable mpv command by format
-3. Build files and Arch packaging skeleton
-4. Non-blocking refresh
-5. Cache refresh options
-6. PlaybackManager
-7. Background mpv
-8. mpv log page
-9. mpv IPC
-10. Now Playing page
-11. Replace playback prompt
-12. Jellyfin playback reporting
-13. Static bitrate/transcoding
-14. Audio picker
-15. Split into modules
-16. Packaging/name cleanup
+1. Configurable mpv command by format
+2. Build files and Arch packaging skeleton
+3. Non-blocking refresh
+4. Cache refresh options
+5. PlaybackManager
+6. Background mpv
+7. mpv log page
+8. mpv IPC
+9. Now Playing page
+10. Replace playback prompt
+11. Jellyfin playback reporting
+12. Static bitrate/transcoding
+13. Audio picker
+14. Split into modules
+15. Packaging/name cleanup
 ```
 
-## Reminder: completed 0.0.24 baseline work
+## Reminder: completed 0.0.25 baseline work
 
 The following are already considered done and tested:
 
@@ -716,6 +690,7 @@ regex search support
 Batman themes
 basic named page state
 simple item cache
+subtitle picker
 README/docs
 example config
 gitignore

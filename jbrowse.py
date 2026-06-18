@@ -66,7 +66,7 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.25-dev"
+CLIENT_VERSION = "0.0.25"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
@@ -1333,6 +1333,15 @@ class BrowseApp(App[object]):
 
         return "auto"
 
+    def update_subtitle_status(self) -> None:
+        if self.info_item is None:
+            self.bottom_status.update(f"style: {self.theme_name}")
+            return
+
+        self.bottom_status.update(
+            f"subtitle: {self.subtitle_choice_label(self.info_item)} | style: {self.theme_name}"
+        )
+
     def playback_request(self, item: MediaItem) -> PlaybackRequest:
         return PlaybackRequest(item=item, subtitle_choice=self.subtitle_choice(item))
 
@@ -1864,6 +1873,7 @@ class BrowseApp(App[object]):
             text.append("\n\n")
             text.append("No subtitle tracks were reported by Jellyfin.", style="dim")
 
+        self.update_subtitle_status()
         self.listbox.update(self.overlay_panel(text, "Subtitles"))
 
     def render_info(self) -> None:
@@ -1883,10 +1893,6 @@ class BrowseApp(App[object]):
 
         info_text.append("q/backspace close | Enter play | s subtitles | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
         info_text.append("\n\n")
-
-        if self.info_item is not None:
-            info_text.append(f"Subtitle: {self.subtitle_choice_label(self.info_item)}", style="dim")
-            info_text.append("\n\n")
 
         for line_number, line in enumerate(shown):
             if line_number:
@@ -1911,6 +1917,7 @@ class BrowseApp(App[object]):
         else:
             info_title = "Info"
 
+        self.update_subtitle_status()
         self.listbox.update(self.overlay_panel(info_text, info_title))
 
     def scroll_info(self, key: str) -> None:

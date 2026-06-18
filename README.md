@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.25-dev
+0.0.25
 ```
 
 Current main script:
@@ -29,6 +29,7 @@ Current features:
 - Regex search using `/pattern`.
 - Info page with Jellyfin-style media details.
 - Episode navigation from info page.
+- Subtitle picker from the info page.
 - `mpv` playback.
 - Resume start position from Jellyfin user data.
 - Sort modes:
@@ -45,7 +46,6 @@ Current features:
 
 Not implemented yet:
 
-- Working subtitle selection.
 - mpv IPC.
 - Background mpv while keeping the UI open.
 - Now Playing page.
@@ -53,10 +53,6 @@ Not implemented yet:
 - Static bitrate/transcoding selection.
 - Threaded/non-blocking refresh.
 - Periodic refresh.
-
-Experimental:
-
-- Subtitle picker UI from the info page. Manual testing found that selected subtitles do not yet work correctly in `mpv`, so this is not a release feature yet.
 
 ## Requirements
 

@@ -65,7 +65,7 @@ These strings may become valid later for mpv IPC, Jellyfin playback reporting, o
 
 ## Near-Term Roadmap
 
-1. Fix the `0.0.25-dev` subtitle picker checkpoint; manual testing found selected subtitles do not yet work correctly in `mpv`.
+1. Stabilize the promoted 0.0.25 baseline.
 2. Add configurable `mpv_cmd` by format, or add build files/PKGBUILD if packaging polish feels useful first.
 3. Add threaded refresh if refresh/startup still feels annoying.
 4. Later, introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
