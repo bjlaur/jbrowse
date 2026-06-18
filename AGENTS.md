@@ -59,7 +59,7 @@ These strings may become valid later for mpv IPC, Jellyfin playback reporting, o
 
 ## Near-Term Roadmap
 
-1. Stabilize the promoted 0.24 baseline.
+1. Stabilize the promoted 0.0.24 baseline.
 2. Add a subtitle picker, or add threaded refresh if refresh/startup still feels annoying.
 3. Later, introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
 
