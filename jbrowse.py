@@ -1287,6 +1287,11 @@ class BrowseApp(App[object]):
         self.selected_index = max(0, min(self.selected_index, len(self.visible_items) - 1))
         return self.visible_items[self.selected_index].id
 
+    def focus_overlay(self) -> None:
+        self.query.disabled = True
+        if self.focused is not self.listbox:
+            self.listbox.focus()
+
     def save_ui_state(self) -> None:
         self.ui_state.view = self.view
         self.ui_state.display_mode = self.display_mode
@@ -1381,8 +1386,8 @@ class BrowseApp(App[object]):
 
             if event.key in {"q", "escape", "backspace"} or typed == "q":
                 self.page = "browser"
-                self.query.focus()
                 self.render_items()
+                self.query.focus()
                 event.stop()
                 return
 
@@ -1826,6 +1831,7 @@ class BrowseApp(App[object]):
         self.render_info()
 
     def render_subtitle_picker(self) -> None:
+        self.focus_overlay()
         text = Text()
 
         if self.info_item is None:
@@ -1861,6 +1867,7 @@ class BrowseApp(App[object]):
         self.listbox.update(self.overlay_panel(text, "Subtitles"))
 
     def render_info(self) -> None:
+        self.focus_overlay()
         info_text = Text()
 
         if self.info_item is None:
@@ -1931,6 +1938,7 @@ class BrowseApp(App[object]):
         self.render_info()
 
     def render_help(self) -> None:
+        self.focus_overlay()
         help_text = Text()
         help_text.append("jbrowse hotkeys\n", style="bold")
         help_text.append("\n")
@@ -1969,6 +1977,7 @@ class BrowseApp(App[object]):
             self.render_subtitle_picker()
             return
 
+        self.query.disabled = False
         self.ensure_selection_visible()
 
         height = self.viewport_height()

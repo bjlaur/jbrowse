@@ -55,12 +55,14 @@ Current state:
 - The info-page picker opens with `s`.
 - Runtime choices exist for `auto`, `none`, and reported Jellyfin subtitle streams.
 - Manual testing found selected subtitles do not yet work correctly in `mpv`.
+- Overlay focus after returning from `mpv` improved after disabling search input, but still feels hinky and needs another pass.
 - No regressions were noticed in normal browsing/playback.
 
 Next checks:
 
 - Inspect the actual `mpv` command behavior for Jellyfin subtitle streams.
 - Compare the redacted `DEBUG mpv command` line for `auto`, `none`, and a selected subtitle.
+- Revisit focus handling when returning from foreground `mpv` to an info/subtitle overlay.
 - Verify whether `--sid=N` can work with the current static Jellyfin stream URL.
 - If needed, switch to a different simple mpv argument or Jellyfin stream URL parameter.
 - Keep this separate from mpv IPC, background playback, and Jellyfin playback reporting.
