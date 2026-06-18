@@ -20,3 +20,5 @@ jbrowse.tcss
 # Python local build/cache noise.
 __pycache__/
 *.py[cod]
+
+*.zip
