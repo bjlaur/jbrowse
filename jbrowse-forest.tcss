@@ -1,0 +1,38 @@
+Screen {
+    layout: vertical;
+    background: #101511;
+    color: #d6ddd4;
+}
+
+#top_status {
+    height: 1;
+    background: #1e271f;
+    color: #d6ddd4;
+    padding: 0 1;
+}
+
+#query {
+    height: 1;
+    border: none;
+    padding: 0 1;
+    margin: 0;
+    background: #23352a;
+    color: #d6ddd4;
+}
+
+#query:focus {
+    background: #2d4435;
+}
+
+#items {
+    height: 1fr;
+    background: #101511;
+    padding: 0 1;
+}
+
+#bottom_status {
+    height: 1;
+    background: #101511;
+    color: #70806f;
+    padding: 0 1;
+}
