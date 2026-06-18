@@ -60,6 +60,7 @@ Current state:
 Next checks:
 
 - Inspect the actual `mpv` command behavior for Jellyfin subtitle streams.
+- Compare the redacted `DEBUG mpv command` line for `auto`, `none`, and a selected subtitle.
 - Verify whether `--sid=N` can work with the current static Jellyfin stream URL.
 - If needed, switch to a different simple mpv argument or Jellyfin stream URL parameter.
 - Keep this separate from mpv IPC, background playback, and Jellyfin playback reporting.

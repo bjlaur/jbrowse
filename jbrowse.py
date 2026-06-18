@@ -37,10 +37,12 @@ import datetime as dt
 import os
 import re
 import secrets
+import shlex
 import socket
 import subprocess
 import sys
 import textwrap
+import urllib.parse
 from pathlib import Path
 from typing import Any, Optional
 from rich.text import Text
@@ -2021,6 +2023,27 @@ def subtitle_track_for_choice(item: MediaItem, choice: str) -> Optional[Subtitle
     return None
 
 
+def redact_url(value: str) -> str:
+    parsed = urllib.parse.urlsplit(value)
+
+    if not parsed.scheme or not parsed.netloc:
+        return value
+
+    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    redacted_query = [
+        (key, "REDACTED" if key.lower() in {"api_key", "apikey", "token", "access_token"} else item)
+        for key, item in query
+    ]
+
+    return urllib.parse.urlunsplit(
+        parsed._replace(query=urllib.parse.urlencode(redacted_query))
+    )
+
+
+def debug_mpv_command(args: list[str]) -> str:
+    return shlex.join([redact_url(arg) for arg in args])
+
+
 def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> int:
     url = client.stream_url(item)
 
@@ -2046,6 +2069,8 @@ def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "a
         print("Subtitles: none")
     elif subtitle_track is not None:
         print(f"Subtitles: {subtitle_track.title}")
+
+    print(f"DEBUG mpv command: {debug_mpv_command(args)}", file=sys.stderr)
 
     try:
         process = subprocess.Popen(args)
