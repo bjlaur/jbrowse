@@ -11,6 +11,7 @@ Changes:
 - Added runtime per-item subtitle choices: `auto`, `none`, or a selected Jellyfin subtitle stream.
 - Passed subtitle choices to `mpv` best-effort with `--sid=no` or `--sid=N`.
 - Added a temporary redacted `DEBUG mpv command` print to help inspect subtitle launch arguments.
+- Stopped unhandled info/subtitle picker keys from leaking into the search box.
 - Bumped item cache version to refresh subtitle metadata.
 - Updated README, AGENTS notes, `CHANGELOG.md`, and `todo.md`.
 
@@ -24,6 +25,7 @@ Testing summary:
 Manual release check:
 
 - Fix subtitle selection, then try `auto`, `none`, and a real subtitle track from the info panel.
+- On the info panel, press an unused letter key and confirm it does not appear in search.
 
 ## 0.0.24
 

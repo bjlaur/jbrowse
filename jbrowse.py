@@ -1373,6 +1373,7 @@ class BrowseApp(App[object]):
                 event.stop()
                 return
 
+            event.stop()
             return
 
         if self.page == "info":
@@ -1410,6 +1411,7 @@ class BrowseApp(App[object]):
                 event.stop()
                 return
 
+            event.stop()
             return
 
         if event.key in {"ctrl+l", "f1"} or getattr(event, "character", None) == "?":
