@@ -57,10 +57,17 @@ input-ipc-server
 
 These strings may become valid later for mpv IPC, Jellyfin playback reporting, or player config.
 
+## Release Notes And Roadmap Hygiene
+
+- Keep completed roadmap items in `todo.md` marked as done/crossed out instead of deleting them.
+- After each release, add a small `CHANGELOG.md` entry.
+- Each changelog entry should include a very small testing summary and note any important manual test gap.
+
 ## Near-Term Roadmap
 
-1. Stabilize the promoted 0.0.24 baseline.
-2. Add a subtitle picker, or add threaded refresh if refresh/startup still feels annoying.
-3. Later, introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
+1. Fix the `0.0.25-dev` subtitle picker checkpoint; manual testing found selected subtitles do not yet work correctly in `mpv`.
+2. Add configurable `mpv_cmd` by format, or add build files/PKGBUILD if packaging polish feels useful first.
+3. Add threaded refresh if refresh/startup still feels annoying.
+4. Later, introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
 
-Keep those phases separate. Do not bundle subtitle selection, threaded refresh, mpv IPC, and playback reporting into one large change.
+Keep those phases separate. Do not bundle `mpv_cmd`, threaded refresh, mpv IPC, and playback reporting into one large change.

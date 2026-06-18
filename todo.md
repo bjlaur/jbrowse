@@ -4,7 +4,9 @@
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
-Everything completed and tested in `0.0.24` has been removed from this list. The current baseline already has:
+Completed release work stays in this file as checked/crossed-out items so the roadmap keeps its history.
+
+The current baseline already has:
 
 - full sort modes
 - persisted `sort_mode` / `sort_desc`
@@ -14,7 +16,7 @@ Everything completed and tested in `0.0.24` has been removed from this list. The
 - simple `jbrowse.items.json` cache
 - current config/example/gitignore/docs
 
-Use this file as the remaining roadmap.
+Use this file as the roadmap and release-history checklist.
 
 ---
 
@@ -24,6 +26,8 @@ Use this file as the remaining roadmap.
 - Keep the fast single-`Static` item renderer; do not return to Textual `ListView` / `ListItem` media rows.
 - Keep phases separate. Do not bundle subtitle selection, threaded refresh, player IPC, Now Playing, and Jellyfin progress reporting into one large change.
 - Do not add player config, mpv IPC launch options, or Jellyfin playback-reporting calls until the corresponding roadmap section is being implemented.
+- Keep completed todo items marked as done instead of deleting them.
+- Add a small `CHANGELOG.md` entry with a tiny testing summary after each release.
 - Preserve current key decisions:
 
 ```text
@@ -36,46 +40,34 @@ Shift+Enter  direct playback
 
 ---
 
-## 1. Subtitle selection from info screen
+## Completed
 
-Goal: select subtitles in `jbrowse` before playback.
+- [x] ~~Create `CHANGELOG.md` with compact release notes and testing summaries.~~ Added during `0.0.25-dev`.
 
-Possible UI:
+---
 
-```text
-s            open subtitle picker
-↑/↓          select
-Enter        apply
-q/backspace  cancel
-```
+## 1. Fix subtitle selection from info screen
 
-Picker options should include:
+Goal: make the experimental subtitle picker actually control subtitles in `mpv`.
 
-```text
-auto
-none
-English - SUBRIP
-English - SDH - SUBRIP
-Japanese - ASS
-...
-```
+Current state:
 
-Short-term behavior:
+- The info-page picker opens with `s`.
+- Runtime choices exist for `auto`, `none`, and reported Jellyfin subtitle streams.
+- Manual testing found selected subtitles do not yet work correctly in `mpv`.
+- No regressions were noticed in normal browsing/playback.
 
-- Add structured subtitle metadata to `MediaItem` or to a small runtime side map keyed by item id.
-- Open subtitle picker from the info page.
-- Store selected subtitle per item in runtime UI state.
-- When launching mpv, pass a best-effort subtitle selection.
+Next checks:
 
-Long-term robust behavior:
+- Inspect the actual `mpv` command behavior for Jellyfin subtitle streams.
+- Verify whether `--sid=N` can work with the current static Jellyfin stream URL.
+- If needed, switch to a different simple mpv argument or Jellyfin stream URL parameter.
+- Keep this separate from mpv IPC, background playback, and Jellyfin playback reporting.
 
-- Use mpv IPC `track-list`.
-- Match the selected Jellyfin subtitle stream to mpv's actual track id.
-- Allow subtitle switching while mpv is already running.
+Manual release check:
 
-Caveat:
-
-Jellyfin stream indexes and mpv subtitle ids may not perfectly line up. The first implementation can be best-effort, but the robust version belongs after mpv IPC.
+- On an info panel for an item with multiple subtitles, press `s`.
+- Try `auto`, `none`, and a real subtitle track; confirm `mpv` behaves correctly.
 
 ---
 
@@ -156,15 +148,13 @@ PKGBUILD
 
 Possibly useful later:
 
-```text
-LICENSE
-CHANGELOG.md
-Makefile
-install script
-desktop file
-man page
-shell completion
-```
+- LICENSE
+- ~~CHANGELOG.md~~
+- Makefile
+- install script
+- desktop file
+- man page
+- shell completion
 
 Implementation notes:
 
@@ -694,7 +684,7 @@ Do this after the core architecture is less volatile.
 ## Suggested order from here
 
 ```text
-1. Subtitle picker skeleton
+1. Fix subtitle selection from info screen
 2. Configurable mpv command by format
 3. Build files and Arch packaging skeleton
 4. Non-blocking refresh
@@ -712,7 +702,7 @@ Do this after the core architecture is less volatile.
 16. Packaging/name cleanup
 ```
 
-## Reminder: completed 0.0.24 work is not in this todo list
+## Reminder: completed 0.0.24 baseline work
 
 The following are already considered done and tested:
 

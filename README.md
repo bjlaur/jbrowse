@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.24
+0.0.25-dev
 ```
 
 Current main script:
@@ -45,14 +45,18 @@ Current features:
 
 Not implemented yet:
 
+- Working subtitle selection.
 - mpv IPC.
 - Background mpv while keeping the UI open.
 - Now Playing page.
 - Jellyfin playback progress reporting.
 - Static bitrate/transcoding selection.
-- Subtitle picker.
 - Threaded/non-blocking refresh.
 - Periodic refresh.
+
+Experimental:
+
+- Subtitle picker UI from the info page. Manual testing found that selected subtitles do not yet work correctly in `mpv`, so this is not a release feature yet.
 
 ## Requirements
 
@@ -193,12 +197,23 @@ Ctrl+C       quit
 ```text
 q/backspace  close info
 Enter        play shown item
+s            open subtitle picker
 ←/→          previous/next episode
 [/]          previous/next season
 ↑/↓          scroll
 PgUp/PgDn    scroll by page
 Home/End     top/bottom
 ```
+
+### Subtitle picker
+
+```text
+↑/↓          select subtitle mode/track
+Enter        apply
+q/backspace  cancel
+```
+
+Subtitle choices are runtime-only for now. `auto` keeps mpv's default behavior, `none` disables subtitles, and a selected Jellyfin subtitle stream is passed to `mpv` as a best-effort track selection.
 
 ## Search
 

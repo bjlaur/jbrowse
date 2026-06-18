@@ -64,10 +64,10 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.24"
+CLIENT_VERSION = "0.0.25-dev"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 SORT_MODE_ORDER = ["added", "played", "premiere", "name", "series"]
 SORT_MODE_LABELS = {
     "added": "recently added",
@@ -230,6 +230,12 @@ class RefreshRequest:
     pass
 
 
+@dataclasses.dataclass(frozen=True)
+class PlaybackRequest:
+    item: "MediaItem"
+    subtitle_choice: str = "auto"
+
+
 @dataclasses.dataclass
 class UIState:
     view: str = ""
@@ -243,6 +249,18 @@ class UIState:
     previous_page: str = "browser"
     info_item_id: str = ""
     info_scroll: int = 0
+    subtitle_choices: dict[str, str] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass(frozen=True)
+class SubtitleTrack:
+    key: str
+    title: str
+    mpv_sid: str
+    language: str = ""
+    default: bool = False
+    forced: bool = False
+    external: bool = False
 
 
 DEFAULT_TCSS = """
@@ -390,6 +408,7 @@ class MediaItem:
     last_played: str
     resume_ticks: int
     info_lines: list[str]
+    subtitle_tracks: list[SubtitleTrack]
 
     @property
     def resume_seconds(self) -> float:
@@ -655,6 +674,7 @@ def parse_item(raw: dict[str, Any]) -> Optional[MediaItem]:
         last_played=user_data.get("LastPlayedDate") or "",
         resume_ticks=int(user_data.get("PlaybackPositionTicks") or 0),
         info_lines=make_info_lines(raw, title, filename),
+        subtitle_tracks=subtitle_tracks(raw),
     )
 
 
@@ -791,6 +811,48 @@ def best_subtitle_title(raw: dict[str, Any]) -> str:
             return stream_display_title(stream)
 
     return ""
+
+
+def subtitle_track_title(stream: dict[str, Any], ordinal: int) -> str:
+    title = stream_display_title(stream) or f"Subtitle {ordinal}"
+    details = []
+
+    if stream.get("IsDefault"):
+        details.append("default")
+    if stream.get("IsForced"):
+        details.append("forced")
+    if stream.get("IsExternal"):
+        details.append("external")
+
+    if details:
+        return f"{title} ({', '.join(details)})"
+
+    return title
+
+
+def subtitle_tracks(raw: dict[str, Any]) -> list[SubtitleTrack]:
+    tracks: list[SubtitleTrack] = []
+
+    for ordinal, stream in enumerate(
+        [s for s in media_streams(raw) if (s.get("Type") or "").lower() == "subtitle"],
+        start=1,
+    ):
+        stream_index = stream.get("Index")
+        key_index = stream_index if stream_index is not None else ordinal
+
+        tracks.append(
+            SubtitleTrack(
+                key=f"stream:{key_index}",
+                title=subtitle_track_title(stream, ordinal),
+                mpv_sid=str(ordinal),
+                language=str(stream.get("Language") or ""),
+                default=bool(stream.get("IsDefault")),
+                forced=bool(stream.get("IsForced")),
+                external=bool(stream.get("IsExternal")),
+            )
+        )
+
+    return tracks
 
 
 def add_kv(lines: list[str], label: str, value: Any) -> None:
@@ -1039,8 +1101,31 @@ def media_item_to_cache(item: MediaItem) -> dict[str, Any]:
     return dataclasses.asdict(item)
 
 
+def subtitle_track_from_cache(row: dict[str, Any]) -> Optional[SubtitleTrack]:
+    try:
+        return SubtitleTrack(
+            key=str(row["key"]),
+            title=str(row["title"]),
+            mpv_sid=str(row["mpv_sid"]),
+            language=str(row.get("language") or ""),
+            default=bool(row.get("default")),
+            forced=bool(row.get("forced")),
+            external=bool(row.get("external")),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def media_item_from_cache(row: dict[str, Any]) -> Optional[MediaItem]:
     try:
+        cached_subtitles = []
+        for subtitle_row in row.get("subtitle_tracks", []):
+            if not isinstance(subtitle_row, dict):
+                continue
+            track = subtitle_track_from_cache(subtitle_row)
+            if track is not None:
+                cached_subtitles.append(track)
+
         return MediaItem(
             id=str(row["id"]),
             title=str(row["title"]),
@@ -1054,6 +1139,7 @@ def media_item_from_cache(row: dict[str, Any]) -> Optional[MediaItem]:
             last_played=str(row.get("last_played") or ""),
             resume_ticks=int(row.get("resume_ticks") or 0),
             info_lines=[str(line) for line in row.get("info_lines", [])],
+            subtitle_tracks=cached_subtitles,
         )
     except (KeyError, TypeError, ValueError):
         return None
@@ -1134,12 +1220,15 @@ class BrowseApp(App[object]):
         self.selected_index = 0
         self.scroll_offset = ui_state.scroll_offset
         self.regex_error = ""
-        self.page = ui_state.page if ui_state.page in {"browser", "help", "info"} else "browser"
+        self.page = ui_state.page if ui_state.page in {"browser", "help", "info", "subtitles"} else "browser"
         self.previous_page = ui_state.previous_page if ui_state.previous_page in {"browser", "info"} else "browser"
         self.info_scroll = ui_state.info_scroll
         self.info_item: Optional[MediaItem] = find_item_by_id(items, ui_state.info_item_id)
         if self.page == "info" and self.info_item is None:
             self.page = "browser"
+        if self.page == "subtitles" and self.info_item is None:
+            self.page = "browser"
+        self.subtitle_index = 0
         self.sort_desc = ui_state.sort_desc
         self._ignore_input_change = False
 
@@ -1173,7 +1262,9 @@ class BrowseApp(App[object]):
 
         self.apply_filter(restore=True)
 
-        if self.page == "info" and self.info_item is not None:
+        if self.page == "subtitles" and self.info_item is not None:
+            self.render_subtitle_picker()
+        elif self.page == "info" and self.info_item is not None:
             self.render_info()
         elif self.ui_state.focus == "list" and self.visible_items:
             self.listbox.focus()
@@ -1207,17 +1298,48 @@ class BrowseApp(App[object]):
         self.ui_state.info_item_id = self.info_item.id if self.info_item is not None else ""
         self.ui_state.info_scroll = self.info_scroll
 
+    def subtitle_options(self, item: MediaItem) -> list[tuple[str, str]]:
+        options = [
+            ("auto", "auto"),
+            ("none", "none"),
+        ]
+
+        options.extend((track.key, track.title) for track in item.subtitle_tracks)
+        return options
+
+    def subtitle_choice(self, item: MediaItem) -> str:
+        choice = self.ui_state.subtitle_choices.get(item.id, "auto")
+        valid = {key for key, _label in self.subtitle_options(item)}
+
+        if choice in valid:
+            return choice
+
+        self.ui_state.subtitle_choices.pop(item.id, None)
+        return "auto"
+
+    def subtitle_choice_label(self, item: MediaItem) -> str:
+        choice = self.subtitle_choice(item)
+
+        for key, label in self.subtitle_options(item):
+            if key == choice:
+                return label
+
+        return "auto"
+
+    def playback_request(self, item: MediaItem) -> PlaybackRequest:
+        return PlaybackRequest(item=item, subtitle_choice=self.subtitle_choice(item))
+
     def play_selected(self) -> None:
         if not self.visible_items:
             return
         self.save_ui_state()
-        self.exit(self.visible_items[self.selected_index])
+        self.exit(self.playback_request(self.visible_items[self.selected_index]))
 
     def play_info_item(self) -> None:
         if self.info_item is None:
             return
         self.save_ui_state()
-        self.exit(self.info_item)
+        self.exit(self.playback_request(self.info_item))
 
     def on_key(self, event) -> None:
         if event.key in {"ctrl+c", "ctrl+q"}:
@@ -1232,6 +1354,25 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
+        if self.page == "subtitles":
+            if event.key in {"q", "escape", "backspace"} or getattr(event, "character", None) == "q":
+                self.page = "info"
+                self.render_info()
+                event.stop()
+                return
+
+            if event.key == "enter":
+                self.apply_subtitle_choice()
+                event.stop()
+                return
+
+            if event.key in {"up", "down", "home", "end"}:
+                self.move_subtitle_selection(event.key)
+                event.stop()
+                return
+
+            return
+
         if self.page == "info":
             typed = getattr(event, "character", None)
 
@@ -1244,6 +1385,11 @@ class BrowseApp(App[object]):
 
             if event.key == "enter":
                 self.play_info_item()
+                event.stop()
+                return
+
+            if typed == "s" or event.key == "s":
+                self.open_subtitle_picker()
                 event.stop()
                 return
 
@@ -1617,6 +1763,99 @@ class BrowseApp(App[object]):
         self.info_scroll = 0
         self.render_info()
 
+    def open_subtitle_picker(self) -> None:
+        if self.info_item is None:
+            return
+
+        current = self.subtitle_choice(self.info_item)
+        options = self.subtitle_options(self.info_item)
+        self.subtitle_index = 0
+
+        for index, (key, _label) in enumerate(options):
+            if key == current:
+                self.subtitle_index = index
+                break
+
+        self.page = "subtitles"
+        self.render_subtitle_picker()
+
+    def move_subtitle_selection(self, key: str) -> None:
+        if self.info_item is None:
+            return
+
+        options = self.subtitle_options(self.info_item)
+        if not options:
+            self.subtitle_index = 0
+            return
+
+        if key == "up":
+            self.subtitle_index -= 1
+        elif key == "down":
+            self.subtitle_index += 1
+        elif key == "home":
+            self.subtitle_index = 0
+        elif key == "end":
+            self.subtitle_index = len(options) - 1
+
+        self.subtitle_index = max(0, min(self.subtitle_index, len(options) - 1))
+        self.render_subtitle_picker()
+
+    def apply_subtitle_choice(self) -> None:
+        if self.info_item is None:
+            return
+
+        options = self.subtitle_options(self.info_item)
+        if not options:
+            self.page = "info"
+            self.render_info()
+            return
+
+        self.subtitle_index = max(0, min(self.subtitle_index, len(options) - 1))
+        choice, _label = options[self.subtitle_index]
+
+        if choice == "auto":
+            self.ui_state.subtitle_choices.pop(self.info_item.id, None)
+        else:
+            self.ui_state.subtitle_choices[self.info_item.id] = choice
+
+        self.page = "info"
+        self.render_info()
+
+    def render_subtitle_picker(self) -> None:
+        text = Text()
+
+        if self.info_item is None:
+            text.append("No selected item.", style="bold")
+            self.listbox.update(self.overlay_panel(text, "Subtitles"))
+            return
+
+        options = self.subtitle_options(self.info_item)
+        current = self.subtitle_choice(self.info_item)
+        self.subtitle_index = max(0, min(self.subtitle_index, len(options) - 1))
+
+        text.append("↑/↓ select | Enter apply | q/backspace cancel", style="dim")
+        text.append("\n\n")
+
+        for index, (key, label) in enumerate(options):
+            if index:
+                text.append("\n")
+
+            prefix = "✓ " if key == current else "  "
+            line = f"{prefix}{label}"
+
+            if index == self.subtitle_index:
+                text.append(line, style="reverse")
+            elif key == current:
+                text.append(line, style="bold")
+            else:
+                text.append(line)
+
+        if not self.info_item.subtitle_tracks:
+            text.append("\n\n")
+            text.append("No subtitle tracks were reported by Jellyfin.", style="dim")
+
+        self.listbox.update(self.overlay_panel(text, "Subtitles"))
+
     def render_info(self) -> None:
         info_text = Text()
 
@@ -1631,8 +1870,12 @@ class BrowseApp(App[object]):
 
         shown = lines[self.info_scroll : self.info_scroll + height]
 
-        info_text.append("q/backspace close | Enter play | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
+        info_text.append("q/backspace close | Enter play | s subtitles | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
         info_text.append("\n\n")
+
+        if self.info_item is not None:
+            info_text.append(f"Subtitle: {self.subtitle_choice_label(self.info_item)}", style="dim")
+            info_text.append("\n\n")
 
         for line_number, line in enumerate(shown):
             if line_number:
@@ -1699,7 +1942,7 @@ class BrowseApp(App[object]):
         help_text.append("/pattern     regex search\n")
         help_text.append("Ctrl+T       toggle title/filename display and search\n")
         help_text.append("Ctrl+O       toggle ascending/descending sort\n")
-        help_text.append("Info: q/backspace close, Enter play, ←/→ episode, [/] season\n")
+        help_text.append("Info: q/backspace close, Enter play, s subtitles, ←/→ episode, [/] season\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
         help_text.append("Ctrl+X       cycle theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
@@ -1716,6 +1959,10 @@ class BrowseApp(App[object]):
 
         if self.page == "info":
             self.render_info()
+            return
+
+        if self.page == "subtitles":
+            self.render_subtitle_picker()
             return
 
         self.ensure_selection_visible()
@@ -1766,7 +2013,15 @@ class BrowseApp(App[object]):
         self.bottom_status.update(f"style: {self.theme_name}")
 
 
-def play_item(client: JellyfinClient, item: MediaItem) -> int:
+def subtitle_track_for_choice(item: MediaItem, choice: str) -> Optional[SubtitleTrack]:
+    for track in item.subtitle_tracks:
+        if track.key == choice:
+            return track
+
+    return None
+
+
+def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> int:
     url = client.stream_url(item)
 
     args = [
@@ -1775,12 +2030,22 @@ def play_item(client: JellyfinClient, item: MediaItem) -> int:
         f"--force-media-title={item.filename}",
     ]
 
+    subtitle_track = subtitle_track_for_choice(item, subtitle_choice)
+    if subtitle_choice == "none":
+        args.append("--sid=no")
+    elif subtitle_track is not None:
+        args.append(f"--sid={subtitle_track.mpv_sid}")
+
     if item.resume_seconds > 0:
         args.append(f"--start={item.resume_seconds:.3f}")
 
     args.append(url)
 
     print(f"Now Playing: \033[1;32m{item.filename}\033[0m")
+    if subtitle_choice == "none":
+        print("Subtitles: none")
+    elif subtitle_track is not None:
+        print(f"Subtitles: {subtitle_track.title}")
 
     try:
         process = subprocess.Popen(args)
@@ -1842,7 +2107,8 @@ def browser_loop(cfg: Config, client: JellyfinClient, items: list[MediaItem], th
                 print("Returning with old item list.", file=sys.stderr)
             continue
 
-        play_item(client, chosen)
+        if isinstance(chosen, PlaybackRequest):
+            play_item(client, chosen.item, chosen.subtitle_choice)
 
 
 def main() -> int:
