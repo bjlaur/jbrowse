@@ -1,0 +1,651 @@
+# todo.md
+
+## jbrowse TODO list, post-0.0.24
+
+This file is intended for Codex or another coding agent continuing the `jbrowse` project.
+
+Everything completed and tested in `0.0.24` has been removed from this list. The current baseline already has:
+
+- full sort modes
+- persisted `sort_mode` / `sort_desc`
+- regex search support
+- Batman themes
+- basic named page state for `browser`, `help`, and `info`
+- simple `jbrowse.items.json` cache
+- current config/example/gitignore/docs
+
+Use this file as the remaining roadmap.
+
+---
+
+## Ground rules
+
+- Keep `jbrowse.py` as the active single-file app until splitting it is clearly worth it.
+- Keep the fast single-`Static` item renderer; do not return to Textual `ListView` / `ListItem` media rows.
+- Keep phases separate. Do not bundle subtitle selection, threaded refresh, player IPC, Now Playing, and Jellyfin progress reporting into one large change.
+- Do not add player config, mpv IPC launch options, or Jellyfin playback-reporting calls until the corresponding roadmap section is being implemented.
+- Preserve current key decisions:
+
+```text
+Enter        info
+Shift+Enter  direct playback
+```
+
+- Avoid `Ctrl+I` for info because terminals treat it as Tab.
+- Avoid F2 for info; it was already rejected.
+
+---
+
+## 1. Subtitle selection from info screen
+
+Goal: select subtitles in `jbrowse` before playback.
+
+Possible UI:
+
+```text
+s            open subtitle picker
+↑/↓          select
+Enter        apply
+q/backspace  cancel
+```
+
+Picker options should include:
+
+```text
+auto
+none
+English - SUBRIP
+English - SDH - SUBRIP
+Japanese - ASS
+...
+```
+
+Short-term behavior:
+
+- Add structured subtitle metadata to `MediaItem` or to a small runtime side map keyed by item id.
+- Open subtitle picker from the info page.
+- Store selected subtitle per item in runtime UI state.
+- When launching mpv, pass a best-effort subtitle selection.
+
+Long-term robust behavior:
+
+- Use mpv IPC `track-list`.
+- Match the selected Jellyfin subtitle stream to mpv's actual track id.
+- Allow subtitle switching while mpv is already running.
+
+Caveat:
+
+Jellyfin stream indexes and mpv subtitle ids may not perfectly line up. The first implementation can be best-effort, but the robust version belongs after mpv IPC.
+
+---
+
+## 2. Better help text / key map cleanup
+
+Goal: keep help readable as controls grow.
+
+Suggested help sections:
+
+```text
+Browsing
+Search
+Info
+Playback
+Themes
+App
+```
+
+This becomes more important once subtitles, now playing, mpv log, and quality controls exist.
+
+Current help is acceptable, but every new feature should update the help page intentionally.
+
+---
+
+## 3. Non-blocking refresh
+
+Current behavior:
+
+```text
+Ctrl+R blocks while Jellyfin fetch runs
+```
+
+Future behavior:
+
+```text
+Ctrl+R
+UI stays responsive
+top bar says refreshing...
+background fetch runs
+cache updates
+list updates when done
+```
+
+Preserve during refresh:
+
+```text
+search text
+selected item
+scroll position
+info item if still present
+display mode
+sort mode
+sort direction
+```
+
+Implementation suggestion:
+
+- Start with a background thread and a small queue.
+- Worker thread fetches Jellyfin items.
+- UI timer polls the queue.
+- On success:
+  - replace in-memory items
+  - rebuild sorted views
+  - write `jbrowse.items.json`
+  - keep current selection if possible
+- On failure:
+  - keep old item list
+  - show refresh error in status/help-style panel
+
+Do not add periodic refresh until manual non-blocking refresh is solid.
+
+---
+
+## 4. Periodic refresh
+
+After non-blocking refresh exists, consider config:
+
+```ini
+[cache]
+refresh_interval_minutes = 30
+```
+
+Meaning:
+
+```text
+0 = disabled
+positive number = refresh every N minutes while jbrowse is open
+```
+
+Requirements:
+
+- Must not interrupt search/list/info usage.
+- Must not steal focus.
+- Must not block UI.
+- Should update cache after a successful refresh.
+
+---
+
+## 5. Refresh after playback stops
+
+After refresh is backgrounded, consider config:
+
+```ini
+[cache]
+refresh_after_playback = true
+```
+
+Goal:
+
+- After mpv exits, refresh watched/resume state.
+- Do it in the background so returning from playback is not annoying.
+
+This should wait until non-blocking refresh is implemented.
+
+---
+
+## 6. PlaybackManager
+
+Big architecture piece.
+
+Create a `PlaybackManager` object instead of having UI code directly own future playback state.
+
+It should eventually own:
+
+```text
+mpv process
+mpv IPC socket
+mpv stdout/stderr log buffer
+current item
+position
+duration
+pause state
+quality
+subtitle/audio selection
+Jellyfin reporting state
+```
+
+Responsibilities:
+
+- Start playback.
+- Stop playback.
+- Replace playback.
+- Track whether something is currently playing.
+- Read mpv output.
+- Later, send/receive mpv IPC commands.
+- Later, report to Jellyfin.
+
+Important guidance:
+
+Do not cram all player logic into `BrowseApp`. `BrowseApp` should ask the PlaybackManager for state and call methods on it.
+
+---
+
+## 7. Spawn mpv in background
+
+Current behavior:
+
+```text
+jbrowse waits while mpv runs
+```
+
+Future behavior:
+
+```text
+jbrowse stays open
+mpv opens video window
+jbrowse captures mpv output
+UI remains usable
+```
+
+Implementation idea:
+
+```python
+subprocess.Popen(
+    args,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    stdin=subprocess.DEVNULL,
+    text=True,
+    bufsize=1,
+)
+```
+
+This likely belongs inside `PlaybackManager`.
+
+Do this before Now Playing, mpv log page, or Jellyfin progress reporting.
+
+---
+
+## 8. mpv output/log page
+
+Hotkey idea:
+
+```text
+Ctrl+G = mpv output/log page
+```
+
+Use a rolling buffer:
+
+```python
+collections.deque(maxlen=2000)
+```
+
+Maybe also write a log file:
+
+```text
+~/.cache/jbrowse/mpv.log
+```
+
+Useful external command:
+
+```bash
+tail -f ~/.cache/jbrowse/mpv.log
+```
+
+The in-app log page should support:
+
+```text
+q/backspace  close
+↑/↓          scroll
+PageUp/PageDown
+Home/End
+```
+
+---
+
+## 9. mpv IPC
+
+Needed for real playback control.
+
+mpv launch will eventually include a per-run local IPC socket option.
+
+```text
+/tmp/jbrowse-mpv-XXXX.sock
+```
+
+Needed commands/properties:
+
+```text
+time-pos
+duration
+pause
+track-list
+pause/play toggle
+stop
+seek
+loadfile replace
+set subtitle track
+set audio track
+```
+
+This unlocks:
+
+- Now Playing page
+- pause/stop/seek controls
+- replace-current-playback without restarting the whole app
+- accurate Jellyfin playback reporting
+- robust subtitle/audio switching
+- static bitrate restart-at-current-position
+
+Note:
+
+When mpv IPC is implemented, update any stale-string / feature-guard checks for the new launch option.
+
+---
+
+## 10. Replace-current-playback prompt
+
+If something is already playing and the user tries to play another item, ask first.
+
+Dialog:
+
+```text
+Replace playback?
+
+Currently playing:
+Heavy Is the Head
+
+Replace with:
+Next Episode?
+
+y replace | n cancel
+```
+
+Possible mpv implementation:
+
+```text
+loadfile NEW_URL replace
+```
+
+Potential complication:
+
+Jellyfin playback reporting may be cleaner if the old session is explicitly stopped and a new one started. If `loadfile` causes Jellyfin reporting weirdness, use stop/relaunch internally.
+
+---
+
+## 11. Now Playing page
+
+This should be the info page plus live playback state, not a separate tiny status page.
+
+Sketch:
+
+```text
+Now Playing 8/10
+q/backspace browser | Enter replace/play | Space pause | s subtitles
+←/→ episode | [/] season | ↑/↓ scroll | Ctrl+G mpv log
+
+FROM
+Season 4 - 8. Heavy Is the Head
+
+████████████░░░░░░░░░░░░░░  12:43 / 58:00
+state: playing    quality: direct    subtitle: English - SUBRIP
+
+Video       4K HEVC SDR
+Audio       English - Dolby Digital+ - 5.1 - Default
+Subtitles   English - SUBRIP
+
+Synopsis...
+Technical details...
+```
+
+Hotkey idea:
+
+```text
+Ctrl+N = now playing
+```
+
+Behavior:
+
+- Backspace from Now Playing returns to browser.
+- Playback continues.
+- If the user navigates to another item and presses play while something is active, show replace-current-playback prompt.
+
+Needs:
+
+- PlaybackManager
+- background mpv
+- mpv IPC for live progress
+
+---
+
+## 12. Pause / stop / seek controls
+
+Possible controls:
+
+```text
+Space    pause/play
+Ctrl+K   stop playback
+, / .    seek backward/forward maybe
+```
+
+Needs mpv IPC first.
+
+Terminal caveat:
+
+Do not assume all modified keys work in every terminal. Test real key events before documenting them as final.
+
+---
+
+## 13. Jellyfin playback reporting
+
+After mpv IPC exists, implement Jellyfin playback reporting.
+
+Endpoints:
+
+```text
+playing start
+playing progress
+playing stopped
+```
+
+Use mpv IPC for accurate position:
+
+```text
+time-pos -> PositionTicks
+```
+
+Report state such as:
+
+```text
+ItemId
+PositionTicks
+IsPaused
+CanSeek
+```
+
+Do not do this before IPC. Without IPC, final position is guesswork.
+
+When this is implemented, update any stale-string / feature-guard checks for Jellyfin playback-reporting endpoints.
+
+---
+
+## 14. Final playback position save
+
+When mpv exits or item is replaced:
+
+```text
+send final PositionTicks
+send Playing/Stopped
+```
+
+Needs mpv IPC.
+
+Goal:
+
+- Jellyfin resume state should be accurate.
+- Stopping playback should update watched/resume data.
+
+---
+
+## 15. Static bitrate selection
+
+Possible quality options:
+
+```text
+direct
+40 Mbps
+20 Mbps
+12 Mbps
+8 Mbps
+4 Mbps
+2 Mbps
+```
+
+Hotkey idea:
+
+```text
+Ctrl+B = cycle quality
+```
+
+Bottom bar idea:
+
+```text
+quality: direct
+```
+
+Implementation notes:
+
+- Direct mode can keep the current static stream URL behavior.
+- Bitrate-limited modes likely need Jellyfin transcoding URL parameters.
+- Test against the user's actual Jellyfin server.
+
+---
+
+## 16. Change bitrate while playing
+
+Not truly seamless.
+
+Practical version:
+
+```text
+get current mpv time-pos
+stop/replace stream
+build new Jellyfin URL with new bitrate
+restart at same position
+```
+
+Needs:
+
+- mpv IPC
+- static bitrate URL support
+- PlaybackManager restart/replace logic
+
+---
+
+## 17. Audio picker
+
+After subtitle picker and mpv IPC, add audio track selection.
+
+Possible controls:
+
+```text
+a = audio picker
+s = subtitle picker
+```
+
+Audio picker should mirror the subtitle picker:
+
+```text
+auto
+English - Dolby Digital+ - 5.1 - Default
+Japanese - AAC - Stereo
+...
+```
+
+Robust implementation should use mpv IPC `track-list`.
+
+---
+
+## 18. Split the giant file
+
+Do this later, after the app stabilizes further.
+
+Possible structure:
+
+```text
+jbrowse/
+  __main__.py
+  config.py
+  cache.py
+  jellyfin.py
+  models.py
+  player.py
+  ui.py
+  themes.py
+```
+
+Do not do this too early. The single-file version is still useful while iterating.
+
+Suggested timing:
+
+- after PlaybackManager exists
+- after non-blocking refresh exists
+- after basic Now Playing exists
+
+---
+
+## 19. Stabilize name / packaging
+
+Eventually settle on:
+
+```text
+jbrowse
+README.md
+pyproject.toml
+jbrowse.conf.example
+themes/
+```
+
+Possible future packaging:
+
+```text
+PKGBUILD
+```
+
+Do this after the core architecture is less volatile.
+
+---
+
+## Suggested order from here
+
+```text
+1. Subtitle picker skeleton
+2. Non-blocking refresh
+3. Cache refresh options
+4. PlaybackManager
+5. Background mpv
+6. mpv log page
+7. mpv IPC
+8. Now Playing page
+9. Replace playback prompt
+10. Jellyfin playback reporting
+11. Static bitrate/transcoding
+12. Audio picker
+13. Split into modules
+14. Packaging/name cleanup
+```
+
+## Reminder: completed 0.0.24 work is not in this todo list
+
+The following are already considered done and tested:
+
+```text
+full sort modes
+persist sort_mode / sort_desc
+regex search support
+Batman themes
+basic named page state
+simple item cache
+README/docs
+example config
+gitignore
+```
