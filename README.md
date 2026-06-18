@@ -41,7 +41,7 @@ Current features:
 - Theme cycling.
 - Simple item cache for faster startup.
 - Example config and gitignore.
-- Batman low/high contrast theme pack.
+- Theme files under `themes/`, including Batman low/high contrast themes.
 
 Not implemented yet:
 
@@ -115,7 +115,7 @@ max_display_items = 300
 display_mode = title
 
 [style]
-# path = jbrowse.tcss
+# path = themes/jbrowse-batman-low-contrast.tcss
 ```
 
 ## Config lookup
@@ -260,18 +260,18 @@ Or in config:
 
 ```ini
 [style]
-path = jbrowse-batman-high-contrast.tcss
+path = themes/jbrowse-batman-high-contrast.tcss
 ```
 
-Relative style paths are resolved relative to `jbrowse.conf`.
+Relative style paths are resolved relative to `jbrowse.conf`. For convenience, old root-relative theme names such as `jbrowse-batman-high-contrast.tcss` also resolve from `themes/` if the root file does not exist.
 
-`Ctrl+X` cycles discovered `.tcss` files and saves the selected one.
+`Ctrl+X` cycles discovered `.tcss` files from `themes/`, the script directory, and `~/.config/jbrowse`, then saves the selected one.
 
-The Batman theme pack contains:
+The Batman themes are:
 
 ```text
-jbrowse-batman-low-contrast.tcss
-jbrowse-batman-high-contrast.tcss
+themes/jbrowse-batman-low-contrast.tcss
+themes/jbrowse-batman-high-contrast.tcss
 ```
 
 Place them next to the script or under:
@@ -292,7 +292,7 @@ jbrowse.items.json.tmp
 jbrowse.tcss
 ```
 
-Commit examples/themes instead.
+Commit named themes under `themes/` instead.
 
 ## Development notes
 

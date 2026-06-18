@@ -14,7 +14,7 @@ jbrowse.state
 jbrowse.items.json
 jbrowse.items.json.tmp
 
-# Local style override. Commit named theme files instead if you want them versioned.
+# Local style override. Commit named theme files under themes/ instead.
 jbrowse.tcss
 
 # Python local build/cache noise.

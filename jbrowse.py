@@ -18,7 +18,7 @@ Style:
   5. built-in fallback
 
 Secret theme preview:
-  Ctrl+X cycles discovered .tcss files.
+  Ctrl+X cycles discovered .tcss files from themes/ and config dirs.
 
 Playback:
   mpv --hwdec=auto --force-media-title="$title" "$url"
@@ -135,7 +135,14 @@ def expand_style_path(value: str, cfg_path: Path) -> Optional[Path]:
     path = Path(value).expanduser()
 
     if not path.is_absolute():
-        path = cfg_path.parent / path
+        direct = cfg_path.parent / path
+        themed = cfg_path.parent / "themes" / path
+
+        # Keep old configs working after committed themes moved under themes/.
+        if not direct.exists() and themed.exists():
+            return themed
+
+        path = direct
 
     return path
 
@@ -315,9 +322,20 @@ def discover_themes(start: Theme) -> list[Theme]:
     # The active explicit/configured file gets first claim on its filename.
     if start.path is not None:
         add_path(start.path)
-        search_dirs = [start.path.parent, script_dir(), Path.home() / ".config" / APP_NAME]
+        search_dirs = [
+            start.path.parent,
+            script_dir() / "themes",
+            script_dir(),
+            Path.home() / ".config" / APP_NAME / "themes",
+            Path.home() / ".config" / APP_NAME,
+        ]
     else:
-        search_dirs = [script_dir(), Path.home() / ".config" / APP_NAME]
+        search_dirs = [
+            script_dir() / "themes",
+            script_dir(),
+            Path.home() / ".config" / APP_NAME / "themes",
+            Path.home() / ".config" / APP_NAME,
+        ]
 
     for directory in search_dirs:
         if not directory.exists() or not directory.is_dir():
@@ -400,7 +418,7 @@ def missing_cfg_message(path: Path) -> str:
         "display_mode = title\n\n"
         "[style]\n"
         "# Optional. Relative paths are relative to jbrowse.conf.\n"
-        "# path = jbrowse.tcss\n"
+        "# path = themes/jbrowse-batman-low-contrast.tcss\n"
     )
 
 

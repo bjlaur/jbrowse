@@ -21,7 +21,7 @@
 - Example config: `jbrowse.conf.example`; this is safe to commit.
 - State file: `jbrowse.state`; ignored.
 - Item cache: `jbrowse.items.json`; ignored because it can contain private media names/paths.
-- Local style override: `jbrowse.tcss`; ignored. Named theme files such as `jbrowse-batman-high-contrast.tcss` are safe to commit.
+- Local style override: `jbrowse.tcss`; ignored. Named theme files belong under `themes/` and are safe to commit.
 
 ## Important Design Decisions
 
