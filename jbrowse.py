@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import configparser
+import json
 import dataclasses
 import datetime as dt
 import os
@@ -63,9 +64,18 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.23"
+CLIENT_VERSION = "0.24"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
+CACHE_VERSION = 1
+SORT_MODE_ORDER = ["added", "played", "premiere", "name", "series"]
+SORT_MODE_LABELS = {
+    "added": "recently added",
+    "played": "last played",
+    "premiere": "premiere date",
+    "name": "name",
+    "series": "series order",
+}
 
 
 def script_dir() -> Path:
@@ -95,6 +105,14 @@ def default_state_path() -> Path:
         return local
 
     return Path.home() / ".cache" / APP_NAME / "jbrowse.state"
+
+
+def default_item_cache_path() -> Path:
+    local = script_dir() / "jbrowse.items.json"
+    if local.exists():
+        return local
+
+    return Path.home() / ".cache" / APP_NAME / "jbrowse.items.json"
 
 
 def default_style_path() -> Optional[Path]:
@@ -154,8 +172,8 @@ def persist_style_path(cfg: Config, theme: Theme) -> None:
 
 
 
-def persist_display_mode(cfg: Config, display_mode: str) -> None:
-    """Save the current title/filename display mode under [ui]."""
+def persist_ui_values(cfg: Config, values: dict[str, str]) -> None:
+    """Save small UI preferences under [ui] in jbrowse.conf."""
     parser = configparser.ConfigParser(strict=False)
 
     if cfg.path.exists():
@@ -164,13 +182,30 @@ def persist_display_mode(cfg: Config, display_mode: str) -> None:
     if not parser.has_section("ui"):
         parser.add_section("ui")
 
-    parser.set("ui", "display_mode", display_mode)
+    for key, value in values.items():
+        parser.set("ui", key, value)
 
     try:
         with cfg.path.open("w", encoding="utf-8") as fh:
             parser.write(fh)
     except OSError as exc:
-        print(f"Could not persist display mode to {cfg.path}: {exc}", file=sys.stderr)
+        print(f"Could not persist UI settings to {cfg.path}: {exc}", file=sys.stderr)
+
+
+def persist_display_mode(cfg: Config, display_mode: str) -> None:
+    """Save the current title/filename display mode under [ui]."""
+    persist_ui_values(cfg, {"display_mode": display_mode})
+
+
+def persist_sort_state(cfg: Config, sort_mode: str, sort_desc: bool) -> None:
+    """Save current sort mode and direction under [ui]."""
+    persist_ui_values(
+        cfg,
+        {
+            "sort_mode": sort_mode,
+            "sort_desc": "true" if sort_desc else "false",
+        },
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -197,7 +232,8 @@ class UIState:
     selected_item_id: str = ""
     scroll_offset: int = 0
     focus: str = "query"
-    info_visible: bool = False
+    page: str = "browser"
+    previous_page: str = "browser"
     info_item_id: str = ""
     info_scroll: int = 0
 
@@ -303,6 +339,8 @@ class Config:
     password: str
     item_types: list[str]
     initial_view: str
+    sort_mode: str
+    sort_desc: bool
     max_display_items: int
     display_mode: str
     style_path: Optional[Path]
@@ -329,6 +367,7 @@ class MediaItem:
     series_name: str
     season_number: Optional[int]
     episode_number: Optional[int]
+    premiere_date: str
     date_created: str
     last_played: str
     resume_ticks: int
@@ -353,7 +392,9 @@ def missing_cfg_message(path: Path) -> str:
         "[library]\n"
         "types = Movie,Episode,Video,MusicVideo\n\n"
         "[ui]\n"
-        "initial_view = added\n"
+        "# sort_mode can be: added, played, premiere, name, series\n"
+        "sort_mode = added\n"
+        "sort_desc = true\n"
         "max_display_items = 300\n"
         "# title or filename\n"
         "display_mode = title\n\n"
@@ -390,9 +431,12 @@ def load_cfg(path: Path) -> Config:
     if not item_types:
         die(f"No item types configured in {path}")
 
-    initial_view = parser.get("ui", "initial_view", fallback="added").strip().lower()
-    if initial_view not in {"played", "added"}:
-        die("ui.initial_view must be played or added")
+    legacy_initial_view = parser.get("ui", "initial_view", fallback="added").strip().lower()
+    sort_mode = parser.get("ui", "sort_mode", fallback=legacy_initial_view).strip().lower()
+    if sort_mode not in SORT_MODE_ORDER:
+        die("ui.sort_mode must be one of: " + ", ".join(SORT_MODE_ORDER))
+
+    sort_desc = parser.getboolean("ui", "sort_desc", fallback=True)
 
     display_mode = parser.get("ui", "display_mode", fallback="title").strip().lower()
     if display_mode not in {"title", "filename"}:
@@ -407,7 +451,9 @@ def load_cfg(path: Path) -> Config:
         username=username,
         password=password,
         item_types=item_types,
-        initial_view=initial_view,
+        initial_view=sort_mode,
+        sort_mode=sort_mode,
+        sort_desc=sort_desc,
         max_display_items=max(
             0,
             parser.getint("ui", "max_display_items", fallback=DEFAULT_VISIBLE_ITEMS),
@@ -507,7 +553,7 @@ class JellyfinClient:
             params = {
                 "Recursive": "true",
                 "IncludeItemTypes": ",".join(self.cfg.item_types),
-                "Fields": "DateCreated,UserData,SeriesName,ParentIndexNumber,IndexNumber,ProductionYear,Path,MediaSources,Overview,Genres,OfficialRating,CommunityRating,PremiereDate,RunTimeTicks,ProviderIds",
+                "Fields": "DateCreated,UserData,SeriesName,ParentIndexNumber,IndexNumber,ProductionYear,Path,MediaSources,Overview,Genres,OfficialRating,CommunityRating,PremiereDate,RunTimeTicks,ProviderIds,SortName",
                 "StartIndex": str(start),
                 "Limit": str(limit),
                 "SortBy": "DateCreated",
@@ -586,6 +632,7 @@ def parse_item(raw: dict[str, Any]) -> Optional[MediaItem]:
         series_name=raw.get("SeriesName") or "",
         season_number=optional_int(raw.get("ParentIndexNumber")),
         episode_number=optional_int(raw.get("IndexNumber")),
+        premiere_date=raw.get("PremiereDate") or "",
         date_created=raw.get("DateCreated") or "",
         last_played=user_data.get("LastPlayedDate") or "",
         resume_ticks=int(user_data.get("PlaybackPositionTicks") or 0),
@@ -910,6 +957,21 @@ def parse_jf_date(value: str) -> dt.datetime:
     return parsed
 
 
+def title_sort_key(item: MediaItem) -> str:
+    return item.title.casefold()
+
+
+def series_sort_key(item: MediaItem) -> tuple[str, int, int, dt.datetime, str]:
+    if item.kind == "Episode":
+        series = item.series_name.casefold() or item.title.casefold()
+        season = item.season_number if item.season_number is not None else 9999
+        episode = item.episode_number if item.episode_number is not None else 9999
+        date = parse_jf_date(item.premiere_date or item.date_created)
+        return (series, season, episode, date, item.title.casefold())
+
+    return (item.title.casefold(), 9999, 9999, parse_jf_date(item.premiere_date or item.date_created), item.title.casefold())
+
+
 def sorted_views(items: list[MediaItem]) -> dict[str, list[MediaItem]]:
     return {
         "played": sorted(
@@ -926,6 +988,19 @@ def sorted_views(items: list[MediaItem]) -> dict[str, list[MediaItem]]:
             key=lambda item: parse_jf_date(item.date_created),
             reverse=True,
         ),
+        "premiere": sorted(
+            items,
+            key=lambda item: parse_jf_date(item.premiere_date or item.date_created),
+            reverse=True,
+        ),
+        "name": sorted(
+            items,
+            key=title_sort_key,
+        ),
+        "series": sorted(
+            items,
+            key=series_sort_key,
+        ),
     }
 
 
@@ -941,6 +1016,79 @@ def find_item_by_id(items: list[MediaItem], item_id: str) -> Optional[MediaItem]
     return None
 
 
+
+def media_item_to_cache(item: MediaItem) -> dict[str, Any]:
+    return dataclasses.asdict(item)
+
+
+def media_item_from_cache(row: dict[str, Any]) -> Optional[MediaItem]:
+    try:
+        return MediaItem(
+            id=str(row["id"]),
+            title=str(row["title"]),
+            filename=str(row.get("filename") or row["title"]),
+            kind=str(row.get("kind") or ""),
+            series_name=str(row.get("series_name") or ""),
+            season_number=optional_int(row.get("season_number")),
+            episode_number=optional_int(row.get("episode_number")),
+            premiere_date=str(row.get("premiere_date") or ""),
+            date_created=str(row.get("date_created") or ""),
+            last_played=str(row.get("last_played") or ""),
+            resume_ticks=int(row.get("resume_ticks") or 0),
+            info_lines=[str(line) for line in row.get("info_lines", [])],
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def load_item_cache(path: Path, cfg: Config, user_id: str) -> list[MediaItem]:
+    if not path.exists():
+        return []
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Could not read item cache {path}: {exc}", file=sys.stderr)
+        return []
+
+    if data.get("cache_version") != CACHE_VERSION:
+        return []
+
+    if data.get("server_url") != cfg.jellyfin_url:
+        return []
+
+    if data.get("user_id") != user_id:
+        return []
+
+    items = []
+    for row in data.get("items", []):
+        if not isinstance(row, dict):
+            continue
+        item = media_item_from_cache(row)
+        if item is not None:
+            items.append(item)
+
+    return items
+
+
+def write_item_cache(path: Path, cfg: Config, user_id: str, items: list[MediaItem]) -> None:
+    data = {
+        "cache_version": CACHE_VERSION,
+        "server_url": cfg.jellyfin_url,
+        "user_id": user_id,
+        "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "items": [media_item_to_cache(item) for item in items],
+    }
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+    except OSError as exc:
+        print(f"Could not write item cache {path}: {exc}", file=sys.stderr)
+
+
 class ItemPane(Static, can_focus=True):
     """A cheap list view: one widget, many rendered text lines."""
     pass
@@ -954,6 +1102,9 @@ class BrowseApp(App[object]):
         self.cfg = cfg
         self.client = client
         self.ui_state = ui_state
+        user_id = self.client.auth.user_id if self.client.auth is not None else ""
+        write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
+
         self.all_items_raw = items
         self.views = sorted_views(items)
         self.view = ui_state.view or cfg.initial_view
@@ -965,10 +1116,12 @@ class BrowseApp(App[object]):
         self.selected_index = 0
         self.scroll_offset = ui_state.scroll_offset
         self.regex_error = ""
-        self.help_visible = False
-        self.info_visible = ui_state.info_visible
+        self.page = ui_state.page if ui_state.page in {"browser", "help", "info"} else "browser"
+        self.previous_page = ui_state.previous_page if ui_state.previous_page in {"browser", "info"} else "browser"
         self.info_scroll = ui_state.info_scroll
         self.info_item: Optional[MediaItem] = find_item_by_id(items, ui_state.info_item_id)
+        if self.page == "info" and self.info_item is None:
+            self.page = "browser"
         self.sort_desc = ui_state.sort_desc
         self._ignore_input_change = False
 
@@ -1002,7 +1155,7 @@ class BrowseApp(App[object]):
 
         self.apply_filter(restore=True)
 
-        if self.info_visible and self.info_item is not None:
+        if self.page == "info" and self.info_item is not None:
             self.render_info()
         elif self.ui_state.focus == "list" and self.visible_items:
             self.listbox.focus()
@@ -1031,7 +1184,8 @@ class BrowseApp(App[object]):
         self.ui_state.selected_item_id = self.current_selected_item_id()
         self.ui_state.scroll_offset = self.scroll_offset
         self.ui_state.focus = "list" if self.focused is self.listbox else "query"
-        self.ui_state.info_visible = self.info_visible
+        self.ui_state.page = self.page
+        self.ui_state.previous_page = self.previous_page
         self.ui_state.info_item_id = self.info_item.id if self.info_item is not None else ""
         self.ui_state.info_scroll = self.info_scroll
 
@@ -1054,17 +1208,17 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
-        if self.help_visible:
-            self.help_visible = False
+        if self.page == "help":
+            self.page = self.previous_page
             self.render_items()
             event.stop()
             return
 
-        if self.info_visible:
+        if self.page == "info":
             typed = getattr(event, "character", None)
 
             if event.key in {"q", "escape", "backspace"} or typed == "q":
-                self.info_visible = False
+                self.page = "browser"
                 self.query.focus()
                 self.render_items()
                 event.stop()
@@ -1093,7 +1247,8 @@ class BrowseApp(App[object]):
             return
 
         if event.key in {"ctrl+l", "f1"} or getattr(event, "character", None) == "?":
-            self.help_visible = True
+            self.previous_page = self.page if self.page in {"browser", "info"} else "browser"
+            self.page = "help"
             self.render_help()
             event.stop()
             return
@@ -1122,7 +1277,7 @@ class BrowseApp(App[object]):
 
         # Do this manually because Tab can be swallowed by focus handling.
         if event.key == "tab":
-            self.toggle_view()
+            self.cycle_sort_mode(1)
             event.stop()
             return
 
@@ -1137,7 +1292,7 @@ class BrowseApp(App[object]):
 
         if self.focused is self.listbox:
             if event.key in {"left", "right"}:
-                self.toggle_view()
+                self.cycle_sort_mode(1 if event.key == "right" else -1)
                 event.stop()
                 return
 
@@ -1246,8 +1401,12 @@ class BrowseApp(App[object]):
             text.append("\n\n")
             text.append("Press any key to continue.", style="dim")
             self.listbox.update(self.overlay_panel(text, "Refresh failed"))
-            self.help_visible = True
+            self.previous_page = self.page if self.page in {"browser", "info"} else "browser"
+            self.page = "help"
             return
+
+        user_id = self.client.auth.user_id if self.client.auth is not None else ""
+        write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
 
         self.all_items_raw = items
         self.views = sorted_views(items)
@@ -1256,8 +1415,14 @@ class BrowseApp(App[object]):
         self.scroll_offset = 0
         self.apply_filter()
 
-    def toggle_view(self) -> None:
-        self.view = "added" if self.view == "played" else "played"
+    def cycle_sort_mode(self, direction: int = 1) -> None:
+        try:
+            index = SORT_MODE_ORDER.index(self.view)
+        except ValueError:
+            index = 0
+
+        self.view = SORT_MODE_ORDER[(index + direction) % len(SORT_MODE_ORDER)]
+        persist_sort_state(self.cfg, self.view, self.sort_desc)
         self.apply_filter()
 
     def toggle_display_mode(self) -> None:
@@ -1267,6 +1432,7 @@ class BrowseApp(App[object]):
 
     def toggle_sort_order(self) -> None:
         self.sort_desc = not self.sort_desc
+        persist_sort_state(self.cfg, self.view, self.sort_desc)
         self.apply_filter()
 
     def item_text(self, item: MediaItem) -> str:
@@ -1346,7 +1512,7 @@ class BrowseApp(App[object]):
         else:
             self.info_item = self.visible_items[self.selected_index]
 
-        self.info_visible = True
+        self.page = "info"
         self.info_scroll = 0
         self.render_info()
 
@@ -1505,8 +1671,8 @@ class BrowseApp(App[object]):
         help_text.append("\n")
         help_text.append("Enter        show selected item info\n")
         help_text.append("Shift+Enter  play selected item immediately\n")
-        help_text.append("Tab          toggle played/added\n")
-        help_text.append("Left/Right   toggle played/added while list is focused\n")
+        help_text.append("Tab          next sort mode\n")
+        help_text.append("Left/Right   previous/next sort mode while list is focused\n")
         help_text.append("Up/Down      move selection; Up at top returns to search\n")
         help_text.append("PageUp/Down  move by a page\n")
         help_text.append("Home/End     jump to first/last shown result\n")
@@ -1526,11 +1692,11 @@ class BrowseApp(App[object]):
         self.listbox.update(self.overlay_panel(help_text, "Help"))
 
     def render_items(self) -> None:
-        if self.help_visible:
+        if self.page == "help":
             self.render_help()
             return
 
-        if self.info_visible:
+        if self.page == "info":
             self.render_info()
             return
 
@@ -1561,7 +1727,7 @@ class BrowseApp(App[object]):
         self.render_items()
 
     def update_status(self) -> None:
-        sort_label = "last played" if self.view == "played" else "recently added"
+        sort_label = SORT_MODE_LABELS.get(self.view, self.view)
         sort_arrow = "↓" if self.sort_desc else "↑"
         sort_text = f"sort: {sort_label:<14} {sort_arrow}"
 
@@ -1630,7 +1796,7 @@ def parse_args() -> argparse.Namespace:
 
 def browser_loop(cfg: Config, client: JellyfinClient, items: list[MediaItem], themes: list[Theme]) -> int:
     theme_index = 0
-    ui_state = UIState(view=cfg.initial_view, display_mode=cfg.display_mode)
+    ui_state = UIState(view=cfg.sort_mode, display_mode=cfg.display_mode, sort_desc=cfg.sort_desc)
 
     while True:
         theme = themes[theme_index]
@@ -1651,6 +1817,8 @@ def browser_loop(cfg: Config, client: JellyfinClient, items: list[MediaItem], th
             print("Refreshing Jellyfin state...", file=sys.stderr)
             try:
                 items = client.fetch_items()
+                user_id = client.auth.user_id if client.auth is not None else ""
+                write_item_cache(default_item_cache_path(), cfg, user_id, items)
             except JellyfinError as exc:
                 print(f"Jellyfin refresh failed: {exc}", file=sys.stderr)
                 print("Returning with old item list.", file=sys.stderr)
@@ -1691,13 +1859,28 @@ def main() -> int:
     print(f"Using state: {state.path}", file=sys.stderr)
     print(f"Using style: {starting_style.name}", file=sys.stderr)
     print(f"Discovered themes: {len(themes)}", file=sys.stderr)
+    item_cache_path = default_item_cache_path()
+
+    print(f"Using item cache: {item_cache_path}", file=sys.stderr)
     print("Logging into Jellyfin...", file=sys.stderr)
 
     try:
         client.login()
-        items = client.fetch_items()
     except JellyfinError as exc:
         die(f"Jellyfin error: {exc}")
+
+    user_id = client.auth.user_id if client.auth is not None else ""
+    items = load_item_cache(item_cache_path, cfg, user_id)
+
+    if items:
+        print(f"Loaded {len(items)} cached items.", file=sys.stderr)
+    else:
+        print("Fetching Jellyfin library...", file=sys.stderr)
+        try:
+            items = client.fetch_items()
+        except JellyfinError as exc:
+            die(f"Jellyfin error: {exc}")
+        write_item_cache(item_cache_path, cfg, user_id, items)
 
     if not items:
         die("No playable Jellyfin items found.")

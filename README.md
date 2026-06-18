@@ -13,7 +13,7 @@ Current prototype version:
 Current main script:
 
 ```text
-jbrowse_fresh_0_24.py
+jbrowse.py
 ```
 
 ## Status
@@ -81,8 +81,8 @@ Depending on repo/package availability, `pip install textual requests` may be ea
 Put the script somewhere convenient:
 
 ```bash
-chmod +x jbrowse_fresh_0_24.py
-./jbrowse_fresh_0_24.py
+chmod +x jbrowse.py
+./jbrowse.py
 ```
 
 Create a config file named:
@@ -253,7 +253,7 @@ The top bar shows arrows:
 A style can be selected with:
 
 ```bash
-./jbrowse_fresh_0_24.py --style path/to/theme.tcss
+./jbrowse.py --style path/to/theme.tcss
 ```
 
 Or in config:
