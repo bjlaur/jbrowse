@@ -2,7 +2,7 @@
 
 
 
-## jbrowse TODO list, post-0.0.30
+## jbrowse TODO list, post-0.0.31
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
@@ -24,6 +24,8 @@ The current baseline already has:
 - periodic background refresh while recently active
 - minimal Jellyfin playback reporting
 - background refresh after playback returns
+- numbered theme cycle order
+- SVG screenshot harness with basic content checks
 - documented current server-side mutation boundary
 - current config/example/gitignore/docs
 
@@ -63,6 +65,7 @@ Shift+Enter  direct playback
 - [x] ~~Periodic refresh while recently active.~~ Released in `0.0.29`.
 - [x] ~~PlaybackManager with minimal Jellyfin playback reporting.~~ Released in `0.0.30`.
 - [x] ~~Background refresh after playback returns.~~ Released in `0.0.30`.
+- [x] ~~Numbered theme cycle order and SVG screenshot harness checks.~~ Released in `0.0.31`.
 
 ---
 

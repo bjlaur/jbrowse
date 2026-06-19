@@ -1,5 +1,31 @@
 # CHANGELOG.md
 
+## 0.0.31 - 2026-06-19
+
+Theme order and SVG screenshot harness release.
+
+Changes:
+
+- Renamed committed themes with numeric prefixes so `Ctrl+X` cycles in a deliberate order.
+- Removed the white-background `jbrowse-ayu.tcss` theme.
+- Removed the real-terminal PNG screenshot POC.
+- Rebuilt the SVG screenshot harness around Textual `run_test` and normal pilot key presses.
+- Added simple screenshot checks before writing SVG files for browser, theme cycle, info, subtitles, help, and refresh state.
+- Updated docs and config examples for the numbered theme names.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
+- Passed `./jbrowse.py --print-style-path`.
+- Ran `python tools/svg_screenshot_poc.py`.
+- Confirmed screenshots are written directly under ignored `screenshot/`.
+- Confirmed `after-ctrl-x.svg` is produced by pressing `Ctrl+X` and then using the next discovered theme.
+
+Manual release check:
+
+- Open the app and press `Ctrl+X`; confirm the next numbered theme appears and is saved.
+- Review `screenshot/browser.svg`, `screenshot/info.svg`, `screenshot/subtitles.svg`, `screenshot/help.svg`, and `screenshot/refreshing.svg`.
+
 ## 0.0.30 - 2026-06-19
 
 Minimal playback reporting release.
