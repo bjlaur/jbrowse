@@ -115,7 +115,7 @@ types = Movie,Episode,Video,MusicVideo
 [ui]
 sort_mode = added
 sort_desc = true
-max_display_items = 300
+max_display_items = 0
 display_mode = title
 
 [style]

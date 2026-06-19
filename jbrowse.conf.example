@@ -26,7 +26,7 @@ sort_mode = added
 sort_desc = true
 
 # 0 means unlimited. Any positive number caps how many matched items are rendered.
-max_display_items = 300
+max_display_items = 0
 
 # title or filename
 display_mode = title
