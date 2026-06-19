@@ -44,6 +44,7 @@ import string
 import subprocess
 import sys
 import threading
+import time
 import textwrap
 import urllib.parse
 from pathlib import Path
@@ -69,11 +70,14 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.28"
+CLIENT_VERSION = "0.0.29"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
 DEFAULT_MPV_CMD_TEMPLATE = 'mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"'
+DEFAULT_REFRESH_INTERVAL_MINUTES = 10
+REFRESH_ACTIVE_WINDOW_SECONDS = 10 * 60
+REFRESH_CHECK_SECONDS = 30
 SORT_MODE_ORDER = ["added", "played", "premiere", "name", "series"]
 SORT_MODE_LABELS = {
     "added": "recently added",
@@ -383,6 +387,7 @@ class Config:
     display_mode: str
     style_path: Optional[Path]
     mpv_cmd: list[str]
+    refresh_interval_minutes: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -441,6 +446,9 @@ def missing_cfg_message(path: Path) -> str:
         "[style]\n"
         "# Optional. Relative paths are relative to jbrowse.conf.\n"
         "# path = themes/jbrowse-batman-low-contrast.tcss\n"
+        "\n[cache]\n"
+        "# 0 disables periodic refresh.\n"
+        "refresh_interval_minutes = 10\n"
     )
 
 
@@ -512,6 +520,13 @@ def load_cfg(path: Path) -> Config:
     style_value = parser.get("style", "path", fallback="")
     style_path = expand_style_path(style_value, path)
     mpv_cmd = load_mpv_cmd(parser, path)
+    refresh_interval_minutes = parser.getint(
+        "cache",
+        "refresh_interval_minutes",
+        fallback=DEFAULT_REFRESH_INTERVAL_MINUTES,
+    )
+    if refresh_interval_minutes < 0:
+        die("cache.refresh_interval_minutes must be 0 or greater")
 
     return Config(
         path=path,
@@ -529,6 +544,7 @@ def load_cfg(path: Path) -> Config:
         display_mode=display_mode,
         style_path=style_path,
         mpv_cmd=mpv_cmd,
+        refresh_interval_minutes=refresh_interval_minutes,
     )
 
 
@@ -1242,6 +1258,7 @@ class BrowseApp(App[object]):
         ui_state: UIState,
         write_cache_on_start: bool = True,
         auto_refresh_on_start: bool = False,
+        last_refresh_started_at: Optional[float] = None,
     ):
         super().__init__()
         self.cfg = cfg
@@ -1280,6 +1297,9 @@ class BrowseApp(App[object]):
         self.refresh_error = ""
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.refresh_thread: Optional[threading.Thread] = None
+        now = time.monotonic()
+        self.last_activity_at = now
+        self.last_refresh_started_at = last_refresh_started_at if last_refresh_started_at is not None else now
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -1325,10 +1345,23 @@ class BrowseApp(App[object]):
         if self.auto_refresh_on_start:
             self.start_background_refresh("startup")
 
+        self.start_periodic_refresh_check()
+        self.maybe_start_periodic_refresh("startup")
+
     def on_input_changed(self, event: Input.Changed) -> None:
+        self.note_activity()
         if self._ignore_input_change:
             return
         self.apply_filter()
+
+    def on_mouse_down(self, event) -> None:
+        self.note_activity()
+
+    def on_mouse_scroll_down(self, event) -> None:
+        self.note_activity()
+
+    def on_mouse_scroll_up(self, event) -> None:
+        self.note_activity()
 
     def current_selected_item_id(self) -> str:
         if not self.visible_items:
@@ -1421,6 +1454,8 @@ class BrowseApp(App[object]):
         self.exit(self.playback_request(self.info_item))
 
     def on_key(self, event) -> None:
+        self.note_activity()
+
         if event.key in {"ctrl+c", "ctrl+q"}:
             self.save_ui_state()
             self.exit(None)
@@ -1633,6 +1668,7 @@ class BrowseApp(App[object]):
             self.update_bottom_status()
             return
 
+        self.last_refresh_started_at = time.monotonic()
         self.refreshing = True
         self.refresh_error = ""
         self.refresh_message = "refreshing..."
@@ -1646,6 +1682,40 @@ class BrowseApp(App[object]):
         )
         self.refresh_thread.start()
         self.set_timer(0.1, self.poll_refresh_result)
+
+    def start_periodic_refresh_check(self) -> None:
+        if self.cfg.refresh_interval_minutes <= 0:
+            return
+
+        self.set_timer(REFRESH_CHECK_SECONDS, self.check_periodic_refresh)
+
+    def check_periodic_refresh(self) -> None:
+        self.maybe_start_periodic_refresh("periodic")
+        self.start_periodic_refresh_check()
+
+    def note_activity(self) -> None:
+        self.last_activity_at = time.monotonic()
+        self.maybe_start_periodic_refresh("activity")
+
+    def is_refresh_due(self) -> bool:
+        if self.cfg.refresh_interval_minutes <= 0:
+            return False
+
+        elapsed = time.monotonic() - self.last_refresh_started_at
+        return elapsed >= self.cfg.refresh_interval_minutes * 60
+
+    def is_recently_active(self) -> bool:
+        return time.monotonic() - self.last_activity_at <= REFRESH_ACTIVE_WINDOW_SECONDS
+
+    def maybe_start_periodic_refresh(self, reason: str) -> None:
+        if self.refreshing:
+            return
+        if not self.is_refresh_due():
+            return
+        if not self.is_recently_active():
+            return
+
+        self.start_background_refresh(reason)
 
     def refresh_worker(self, reason: str) -> None:
         try:
@@ -2267,6 +2337,7 @@ def browser_loop(
     items: list[MediaItem],
     themes: list[Theme],
     auto_refresh_on_start: bool,
+    last_refresh_started_at: float,
 ) -> int:
     theme_index = 0
     ui_state = UIState(view=cfg.sort_mode, display_mode=cfg.display_mode, sort_desc=cfg.sort_desc)
@@ -2282,9 +2353,11 @@ def browser_loop(
             theme.name,
             ui_state,
             auto_refresh_on_start=auto_refresh_on_start,
+            last_refresh_started_at=last_refresh_started_at,
         )
         chosen = app.run()
         items = app.all_items_raw
+        last_refresh_started_at = app.last_refresh_started_at
         auto_refresh_on_start = False
 
         if chosen is None:
@@ -2359,7 +2432,7 @@ def main() -> int:
     if not items:
         die("No playable Jellyfin items found.")
 
-    return browser_loop(cfg, client, items, themes, auto_refresh_on_start)
+    return browser_loop(cfg, client, items, themes, auto_refresh_on_start, time.monotonic())
 
 
 if __name__ == "__main__":

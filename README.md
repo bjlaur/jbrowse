@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.28
+0.0.29
 ```
 
 Current main script:
@@ -44,6 +44,7 @@ Current features:
 - Simple item cache for faster startup.
 - Background Jellyfin refresh after cached startup.
 - Non-blocking manual refresh with `Ctrl+R`.
+- Periodic background refresh while recently active.
 - Example config and gitignore.
 - Theme files under `themes/`, including Batman low/high contrast themes.
 
@@ -54,7 +55,6 @@ Not implemented yet:
 - Now Playing page.
 - Jellyfin playback progress reporting.
 - Static bitrate/transcoding selection.
-- Periodic refresh.
 
 ## Requirements
 
@@ -121,6 +121,9 @@ display_mode = title
 
 [mpv]
 # mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
+
+[cache]
+refresh_interval_minutes = 10
 ```
 
 ## Config lookup
@@ -168,6 +171,15 @@ Lookup/write behavior:
 The app still logs into Jellyfin on startup, but if the item cache exists it opens from cache first and starts a background refresh.
 
 Manual refresh with `Ctrl+R` fetches a new item list in the background and writes the cache. Refresh status appears in the bottom status bar.
+
+Periodic refresh is controlled by:
+
+```ini
+[cache]
+refresh_interval_minutes = 10
+```
+
+`0` disables periodic refresh. Positive values refresh in the background only if `jbrowse` has been active in the last 10 minutes. Foreground `mpv` playback counts as inactive because the TUI is not running while playback owns the terminal.
 
 ## mpv command config
 

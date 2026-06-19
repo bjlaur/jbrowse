@@ -40,3 +40,8 @@ display_mode = title
 # $subtitle and $start are omitted when they do not apply.
 # Supported placeholders: $url, $filename, $title, $subtitle, $start.
 # mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
+
+[cache]
+# 0 disables periodic refresh. Positive values refresh in the background
+# while jbrowse has been active in the last 10 minutes.
+refresh_interval_minutes = 10

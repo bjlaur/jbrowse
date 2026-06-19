@@ -29,7 +29,7 @@
 - `Ctrl+I` is not suitable for info because terminals treat it as Tab.
 - F2 was rejected as an info key. Current behavior is `Enter` for info and `Shift+Enter` for direct playback.
 - No `[player]` config yet. `mpv` playback is intentionally simple, with only the lightweight `[mpv] mpv_cmd` command template.
-- Manual refresh is backgrounded. Periodic refresh should be done separately from playback architecture.
+- Manual and periodic refresh are backgrounded. Keep future refresh work separate from playback architecture.
 
 ## Verification
 
@@ -65,8 +65,8 @@ These strings may become valid later for mpv IPC, Jellyfin playback reporting, o
 
 ## Near-Term Roadmap
 
-1. Stabilize the promoted 0.0.28 baseline.
-2. Add periodic refresh/cache refresh options only after manual background refresh feels solid.
-3. Introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
+1. Stabilize the promoted 0.0.29 baseline.
+2. Introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
+3. Keep build/packaging polish lower priority unless explicitly requested.
 
 Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.

@@ -1,5 +1,34 @@
 # CHANGELOG.md
 
+## 0.0.29 - 2026-06-19
+
+Periodic refresh release.
+
+Changes:
+
+- Added `[cache] refresh_interval_minutes`, defaulting to `10`.
+- Periodic refresh reuses the existing background refresh path.
+- Periodic refresh only runs if `jbrowse` has been active in the last 10 minutes.
+- Foreground playback counts as inactive, so periodic refresh waits until the app is active again.
+- Documented the cache refresh config in README and `jbrowse.conf.example`.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/ui_screenshot_poc.py`.
+- Passed config/state/style path smoke checks.
+- Confirmed periodic refresh starts when due and recently active.
+- Confirmed periodic refresh does not start while inactive.
+- Confirmed activity after an inactive due interval starts periodic refresh.
+- Confirmed returning after simulated playback can trigger due periodic refresh.
+- Ran `python tools/ui_screenshot_poc.py` against the real configured Jellyfin server.
+- Confirmed future mpv IPC / Jellyfin playback-reporting guard strings only appear in `AGENTS.md`.
+
+Manual release check:
+
+- Set `refresh_interval_minutes = 1`, use the app, and confirm refresh appears in the bottom bar after the interval.
+- Leave the app idle past the active window and confirm refresh waits until activity resumes.
+- Confirm manual `Ctrl+R` and normal playback still work.
+
 ## 0.0.28 - 2026-06-19
 
 Non-blocking refresh release.

@@ -2,7 +2,7 @@
 
 
 
-## jbrowse TODO list, post-0.0.28
+## jbrowse TODO list, post-0.0.29
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
@@ -21,6 +21,7 @@ The current baseline already has:
 - configurable `mpv_cmd` playback template
 - non-blocking manual refresh
 - automatic background refresh after cached startup
+- periodic background refresh while recently active
 - documented current server-side mutation boundary
 - current config/example/gitignore/docs
 
@@ -57,35 +58,11 @@ Shift+Enter  direct playback
 - [x] ~~Single configurable `mpv_cmd` playback template.~~ Released in `0.0.27`.
 - [x] ~~Document current server-side mutation boundary.~~ Released in `0.0.27`.
 - [x] ~~Non-blocking manual refresh and cached-startup background refresh.~~ Released in `0.0.28`.
+- [x] ~~Periodic refresh while recently active.~~ Released in `0.0.29`.
 
 ---
 
-## 1. Periodic refresh
-
-After non-blocking refresh exists, consider config:
-
-```ini
-[cache]
-refresh_interval_minutes = 30
-```
-
-Meaning:
-
-```text
-0 = disabled
-positive number = refresh every N minutes while jbrowse is open
-```
-
-Requirements:
-
-- Must not interrupt search/list/info usage.
-- Must not steal focus.
-- Must not block UI.
-- Should update cache after a successful refresh.
-
----
-
-## 2. Refresh after playback stops
+## 1. Refresh after playback stops
 
 After refresh is backgrounded, consider config:
 
@@ -103,7 +80,7 @@ This should wait until non-blocking refresh is implemented.
 
 ---
 
-## 3. PlaybackManager
+## 2. PlaybackManager
 
 Big architecture piece.
 
@@ -140,7 +117,7 @@ Do not cram all player logic into `BrowseApp`. `BrowseApp` should ask the Playba
 
 ---
 
-## 4. Build files and Arch packaging skeleton
+## 3. Build files and Arch packaging skeleton
 
 Goal: add the boring-but-useful project files that make `jbrowse` easier to install, build, and package.
 
@@ -171,7 +148,7 @@ Implementation notes:
 
 ---
 
-## 5. Better help text / key map cleanup
+## 4. Better help text / key map cleanup
 
 Goal: keep help readable as controls grow.
 
@@ -192,7 +169,7 @@ Current help is acceptable, but every new feature should update the help page in
 
 ---
 
-## 6. Server-side safety guard
+## 5. Server-side safety guard
 
 Goal: keep track of code paths that can mutate Jellyfin/server state before we add playback reporting or other write APIs.
 
@@ -205,11 +182,11 @@ Implementation notes:
 
 - Keep mutation-capable features behind explicit config/checks.
 - Document mutation-capable endpoints before adding them.
-- Current `0.0.28` state is only a documented boundary; add real guards when the first mutation-capable feature is implemented.
+- Current `0.0.29` state is only a documented boundary; add real guards when the first mutation-capable feature is implemented.
 
 ---
 
-## 7. Future mpv command profiles
+## 6. Future mpv command profiles
 
 The app currently has one configurable `mpv_cmd` template.
 
@@ -223,7 +200,7 @@ Implementation notes:
 
 ---
 
-## 8. Spawn mpv in background
+## 7. Spawn mpv in background
 
 Current behavior:
 
@@ -259,7 +236,7 @@ Do this before Now Playing, mpv log page, or Jellyfin progress reporting.
 
 ---
 
-## 9. mpv output/log page
+## 8. mpv output/log page
 
 Hotkey idea:
 
@@ -296,7 +273,7 @@ Home/End
 
 ---
 
-## 10. mpv IPC
+## 9. mpv IPC
 
 Needed for real playback control.
 
@@ -336,7 +313,7 @@ When mpv IPC is implemented, update any stale-string / feature-guard checks for 
 
 ---
 
-## 11. Replace-current-playback prompt
+## 10. Replace-current-playback prompt
 
 If something is already playing and the user tries to play another item, ask first.
 
@@ -366,7 +343,7 @@ Jellyfin playback reporting may be cleaner if the old session is explicitly stop
 
 ---
 
-## 12. Now Playing page
+## 11. Now Playing page
 
 This should be the info page plus live playback state, not a separate tiny status page.
 
@@ -411,7 +388,7 @@ Needs:
 
 ---
 
-## 13. Pause / stop / seek controls
+## 12. Pause / stop / seek controls
 
 Possible controls:
 
@@ -429,7 +406,7 @@ Do not assume all modified keys work in every terminal. Test real key events bef
 
 ---
 
-## 14. Jellyfin playback reporting
+## 13. Jellyfin playback reporting
 
 After mpv IPC exists, implement Jellyfin playback reporting.
 
@@ -462,7 +439,7 @@ When this is implemented, update any stale-string / feature-guard checks for Jel
 
 ---
 
-## 15. Final playback position save
+## 14. Final playback position save
 
 When mpv exits or item is replaced:
 
@@ -480,7 +457,7 @@ Goal:
 
 ---
 
-## 16. Static bitrate selection
+## 15. Static bitrate selection
 
 Possible quality options:
 
@@ -515,7 +492,7 @@ Implementation notes:
 
 ---
 
-## 17. Change bitrate while playing
+## 16. Change bitrate while playing
 
 Not truly seamless.
 
@@ -536,7 +513,7 @@ Needs:
 
 ---
 
-## 18. Audio picker
+## 17. Audio picker
 
 After subtitle picker and mpv IPC, add audio track selection.
 
@@ -560,7 +537,7 @@ Robust implementation should use mpv IPC `track-list`.
 
 ---
 
-## 19. Split the giant file
+## 18. Split the giant file
 
 Do this later, after the app stabilizes further.
 
@@ -588,7 +565,7 @@ Suggested timing:
 
 ---
 
-## 20. Stabilize name / packaging
+## 19. Stabilize name / packaging
 
 Eventually settle on:
 
@@ -613,20 +590,19 @@ Do this after the core architecture is less volatile.
 ## Suggested order from here
 
 ```text
-1. Cache refresh options
-2. PlaybackManager
-3. Background mpv
-4. mpv log page
-5. mpv IPC
-6. Now Playing page
-7. Replace playback prompt
-8. Jellyfin playback reporting
-9. Static bitrate/transcoding
-10. Audio picker
-11. Build files and Arch packaging skeleton
-12. Better help text / key map cleanup
-13. Split into modules
-14. Packaging/name cleanup
+1. PlaybackManager
+2. Background mpv
+3. mpv log page
+4. mpv IPC
+5. Now Playing page
+6. Replace playback prompt
+7. Jellyfin playback reporting
+8. Static bitrate/transcoding
+9. Audio picker
+10. Build files and Arch packaging skeleton
+11. Better help text / key map cleanup
+12. Split into modules
+13. Packaging/name cleanup
 ```
 
 ## Reminder: completed 0.0.26 baseline work
@@ -645,6 +621,7 @@ real-server UI screenshot POC
 configurable mpv_cmd playback template
 non-blocking manual refresh
 automatic background refresh after cached startup
+periodic background refresh while recently active
 documented server-side mutation boundary
 README/docs
 example config
