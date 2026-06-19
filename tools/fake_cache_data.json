@@ -1,0 +1,87 @@
+{
+  "fixture_version": 1,
+  "purpose": "Publishable, fictional screenshot-harness media data. Keep real Jellyfin/cache data out of this file.",
+  "items": [
+    {
+      "id": "fixture-lorem-ipsum-s01e04",
+      "title": "Lorem Ipsum - S01E04 - Dolor Sit Amet",
+      "filename": "lorem-ipsum.s01e04.dolor-sit-amet.1080p.web-dl.mkv",
+      "kind": "Episode",
+      "series_name": "Lorem Ipsum",
+      "season_number": 1,
+      "episode_number": 4,
+      "premiere_date": "2024-04-18T00:00:00Z",
+      "date_created": "2026-06-19T12:00:00Z",
+      "last_played": "2026-06-18T20:15:00Z",
+      "resume_ticks": 10200000000,
+      "info_lines": [
+        "LOREM IPSUM",
+        "Season 1 - 4. Dolor Sit Amet",
+        "04/18/2024   47 m   * 8.2",
+        "",
+        "Video: 1080p HEVC SDR",
+        "Audio: Japanese - AAC - Stereo - Default",
+        "Subtitles: English - WebVTT",
+        "",
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "",
+        "TMDB",
+        "",
+        "Genres: Drama, Mystery",
+        "",
+        "Technical Details",
+        "-----------------",
+        "Container: Matroska",
+        "Video codec: HEVC",
+        "Audio codec: AAC"
+      ],
+      "subtitle_tracks": [
+        {
+          "key": "eng",
+          "title": "English",
+          "mpv_sid": "1",
+          "language": "eng",
+          "default": true
+        },
+        {
+          "key": "eng-sdh",
+          "title": "English SDH",
+          "mpv_sid": "2",
+          "language": "eng"
+        },
+        {
+          "key": "spa",
+          "title": "Spanish",
+          "mpv_sid": "3",
+          "language": "spa"
+        }
+      ]
+    },
+    {
+      "id": "fixture-dolor-sit-amet",
+      "title": "Dolor Sit Amet",
+      "filename": "dolor-sit-amet.2023.2160p.bluray.av1.mkv",
+      "kind": "Movie",
+      "series_name": "",
+      "premiere_date": "2023-11-03T00:00:00Z",
+      "date_created": "2026-06-18T12:00:00Z",
+      "last_played": "",
+      "resume_ticks": 0,
+      "info_lines": ["Dolor Sit Amet", "11/03/2023   1 h 54 m   * 7.6"],
+      "subtitle_tracks": []
+    },
+    {
+      "id": "fixture-consectetur",
+      "title": "Consectetur",
+      "filename": "consectetur.2021.1080p.web.h264.mkv",
+      "kind": "Movie",
+      "series_name": "",
+      "premiere_date": "2021-09-14T00:00:00Z",
+      "date_created": "2026-06-17T12:00:00Z",
+      "last_played": "2026-05-30T22:30:00Z",
+      "resume_ticks": 0,
+      "info_lines": ["Consectetur", "09/14/2021   1 h 38 m   * 7.1"],
+      "subtitle_tracks": []
+    }
+  ]
+}

@@ -366,13 +366,21 @@ The current playback model starts `mpv` in the background while `jbrowse` stays 
 
 Future work should add mpv IPC to the existing `PlaybackManager` for accurate progress, pause/seek controls, and track switching.
 
-Experimental real-server UI screenshots:
+Experimental fixture UI screenshots:
 
 ```bash
 python tools/svg_screenshot_poc.py
 ```
 
-This writes local SVG screenshots under `screenshot/`. The output can contain private media names and is ignored by git.
+This writes local SVG screenshots under `screenshot/` using committed fictional data from `tools/fake_cache_data.json`. The output is ignored by git so screenshots can be regenerated freely and only selected documentation images need to be added deliberately.
+
+Use your local cache and Jellyfin server only when explicitly wanted:
+
+```bash
+python tools/svg_screenshot_poc.py --real
+```
+
+Real-mode output can contain private media names and remains ignored by git.
 
 Optional fake playback capture smoke test:
 

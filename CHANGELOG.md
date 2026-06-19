@@ -1,5 +1,31 @@
 # CHANGELOG.md
 
+## Unreleased
+
+Screenshot fixture work in progress.
+
+Changes:
+
+- Added committed fictional screenshot data in `tools/fake_cache_data.json`.
+- Made fixture data the default input for `tools/svg_screenshot_poc.py`.
+- Load fixture entries through the normal cache-item decoder, including mock filenames, metadata, and subtitle tracks.
+- Kept `screenshot/` ignored so regenerated output is not committed by default.
+- Added explicit `--real` mode for local cache/Jellyfin screenshots; it fetches from Jellyfin only when no local cache is available.
+- Made fixture screenshots start from the first committed theme rather than a local style override.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
+- Passed JSON validation for `tools/fake_cache_data.json`.
+- Ran `python tools/svg_screenshot_poc.py --playback-smoke` with fixture data.
+- Confirmed browser, theme-cycle, info, subtitles, help, mpv-log, and refreshing SVG checks passed.
+- Known gap: `--real` remains available but was not run for this release, to avoid touching private local data during automated verification.
+
+Manual release check:
+
+- Run `python tools/svg_screenshot_poc.py` and confirm the generated SVGs show Lorem Ipsum fixture media.
+- Optionally run `python tools/svg_screenshot_poc.py --real` and confirm it uses your local media data.
+
 ## 0.0.32 - 2026-06-19
 
 Background mpv and output page release.

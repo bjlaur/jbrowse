@@ -169,13 +169,11 @@ Keep IPC-specific work separate.
 
 ## 3. Screenshot publishing fixtures
 
-Tiny release idea:
+In progress for the next release.
 
-- With test harness mock up filenames and information based on real world information.
-- Need to think about this a bit: what files make sense?
-- Goal: start publishing screenshots without exposing real Jellyfin/media data.
-- Do not commit generated screenshots every run; that would be a ton of image commits.
-- Think through `.gitignore` or a similar workflow so screenshots can be generated every time, but committed only once in a blue moon, just when requested.
+- [x] The SVG harness defaults to committed fictional media in `tools/fake_cache_data.json`.
+- [x] Keep generated `screenshot/` files ignored; add selected documentation images only on request.
+- [x] Keep `--real` as an explicit cache/server mode for local inspection.
 
 ---
 

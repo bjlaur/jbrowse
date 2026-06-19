@@ -17,7 +17,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from jbrowse import (  # noqa: E402
+    Auth,
     BrowseApp,
+    Config,
     JellyfinClient,
     MediaItem,
     PlaybackManager,
@@ -32,7 +34,10 @@ from jbrowse import (  # noqa: E402
     load_cfg,
     load_item_cache,
     load_state,
+    media_item_from_cache,
 )
+
+FIXTURE_DATA_PATH = Path(__file__).with_name("fake_cache_data.json")
 
 
 def log(message: str) -> None:
@@ -51,9 +56,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--playback-smoke",
         action="store_true",
-        help="also run a fake 3-second foreground playback capture smoke test",
+        help="also run a fake 3-second background playback capture smoke test",
+    )
+    parser.add_argument(
+        "--real",
+        action="store_true",
+        help="use the local config/cache and Jellyfin server instead of fictional fixtures",
     )
     return parser.parse_args()
+
+
+def choose_demo_item(items: list[MediaItem]) -> MediaItem:
+    for item in items:
+        if item.subtitle_tracks:
+            return item
+    return items[0]
 
 
 def cached_user_id(path: Path) -> str:
@@ -64,13 +81,6 @@ def cached_user_id(path: Path) -> str:
         return ""
 
     return str(data.get("user_id", ""))
-
-
-def choose_demo_item(items: list[MediaItem]) -> MediaItem:
-    for item in items:
-        if item.subtitle_tracks:
-            return item
-    return items[0]
 
 
 def make_state(cfg, item: MediaItem) -> UIState:
@@ -157,12 +167,16 @@ async def export_view(
     return app.return_value
 
 
-class FakePlaybackClient:
+class FixtureClient:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.auth = Auth(user_id="fixture-user", token="fixture-token")
 
     def stream_url(self, item: MediaItem) -> str:
-        return f"https://example.invalid/Items/{item.id}/stream?api_key=secret"
+        return f"https://example.invalid/Items/{item.id}/stream?api_key=fixture-token"
+
+    def fetch_items(self) -> list[MediaItem]:
+        return fixture_items()
 
     def report_playback_started(self, payload: dict) -> None:
         pass
@@ -172,6 +186,60 @@ class FakePlaybackClient:
 
     def report_playback_stopped(self, payload: dict) -> None:
         pass
+
+
+def fixture_cfg() -> Config:
+    """A complete local config so screenshots never touch a real server or config."""
+    return Config(
+        path=ROOT / "jbrowse.fixture.conf",
+        jellyfin_url="https://example.invalid",
+        username="fixture-user",
+        password="fixture-password",
+        item_types=["Movie", "Episode"],
+        initial_view="added",
+        sort_mode="added",
+        sort_desc=True,
+        max_display_items=0,
+        display_mode="title",
+        style_path=None,
+        mpv_cmd=["mpv", "$url"],
+        refresh_interval_minutes=0,
+    )
+
+
+def fixture_items() -> list[MediaItem]:
+    """Load committed fictional media through the normal cache-item decoder."""
+    try:
+        data = json.loads(FIXTURE_DATA_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read fixture data {FIXTURE_DATA_PATH}: {exc}") from exc
+
+    items = []
+    for row in data.get("items", []):
+        if not isinstance(row, dict):
+            continue
+        item = media_item_from_cache(row)
+        if item is not None:
+            items.append(item)
+
+    if not items:
+        raise RuntimeError(f"No valid fixture items found in {FIXTURE_DATA_PATH}")
+    return items
+
+
+def real_demo_data() -> tuple[Config, JellyfinClient, list[MediaItem]]:
+    """Load the old real-server source only when it is explicitly requested."""
+    cfg = load_cfg(default_cfg_path())
+    state = load_state(default_state_path())
+    client = JellyfinClient(cfg, state)
+    cache_path = default_item_cache_path()
+    items = load_item_cache(cache_path, cfg, cached_user_id(cache_path))
+    if not items:
+        client.login()
+        items = client.fetch_items()
+    if not items:
+        raise RuntimeError("No cached items found; run jbrowse once before using --real.")
+    return cfg, client, items
 
 
 def fake_playback_item() -> MediaItem:
@@ -212,7 +280,7 @@ def run_playback_smoke(cfg) -> dict:
             "$url",
         ],
     )
-    manager = PlaybackManager(FakePlaybackClient(fake_cfg))
+    manager = PlaybackManager(FixtureClient(fake_cfg))
     started_at = time.monotonic()
     error = manager.start_background(fake_playback_item())
     launch_elapsed = time.monotonic() - started_at
@@ -246,19 +314,18 @@ def run_playback_smoke(cfg) -> dict:
 
 
 async def main_async(args: argparse.Namespace) -> int:
-    cfg = load_cfg(default_cfg_path())
-    state = load_state(default_state_path())
-    client = JellyfinClient(cfg, state)
-    cache_path = default_item_cache_path()
-    items = load_item_cache(cache_path, cfg, cached_user_id(cache_path))
-    if not items:
-        client.login()
-        items = load_item_cache(default_item_cache_path(), cfg, client.auth.user_id if client.auth else "")
-    if not items:
-        print("No cached items found; run jbrowse once or the real-terminal POC first.", file=sys.stderr)
-        return 1
+    if args.real:
+        cfg, client, items = real_demo_data()
+        theme_start = initial_theme(cfg.style_path)
+        log("using real local cache/server data; output may contain private media names")
+    else:
+        cfg = fixture_cfg()
+        client = FixtureClient(cfg)
+        items = fixture_items()
+        theme_start = initial_theme(ROOT / "themes" / "01-jbrowse-amber-dim.tcss")
+        log("using fictional publishing fixtures")
 
-    themes = discover_themes(initial_theme(cfg.style_path))
+    themes = discover_themes(theme_start)
     output = Path(args.output).expanduser()
     output.mkdir(parents=True, exist_ok=True)
     for old_svg in output.glob("*.svg"):
@@ -272,7 +339,7 @@ async def main_async(args: argparse.Namespace) -> int:
         args.size,
         output / "browser.svg",
         "browser",
-        ["showing", "display:", "style:"],
+        ["showing", "display:", "Lorem Ipsum", "Dolor Sit Amet", "style:"],
     )
 
     result = await export_view(
@@ -297,12 +364,12 @@ async def main_async(args: argparse.Namespace) -> int:
         args.size,
         output / "after-ctrl-x.svg",
         "browser",
-        ["showing", "display:", "style:"],
+        ["showing", "display:", "Lorem Ipsum", "style:"],
     )
 
     captures = [
-        ("info.svg", "info", ["Info", "Enter", "subtitles"]),
-        ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
+        ("info.svg", "info", ["Info", "LOREM IPSUM", "Japanese", "Subtitles"]),
+        ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none", "English SDH"]),
         ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+X"]),
         ("mpv-log.svg", "mpv-log", ["mpv log", "mpv --fake-demo", "line one"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
