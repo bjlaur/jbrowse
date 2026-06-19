@@ -1,6 +1,6 @@
 # todo.md
 
-## jbrowse TODO list, post-0.0.25
+## jbrowse TODO list, post-0.0.26
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
@@ -15,6 +15,7 @@ The current baseline already has:
 - basic named page state for `browser`, `help`, and `info`
 - simple `jbrowse.items.json` cache
 - subtitle picker from the info page
+- real-server UI screenshot POC
 - current config/example/gitignore/docs
 
 Use this file as the roadmap and release-history checklist.
@@ -45,43 +46,11 @@ Shift+Enter  direct playback
 
 - [x] ~~Subtitle selection from info screen.~~ Released in `0.0.25`.
 - [x] ~~Create `CHANGELOG.md` with compact release notes and testing summaries.~~ Released in `0.0.25`.
+- [x] ~~Real-server UI screenshot POC.~~ Released in `0.0.26`.
 
 ---
 
-## 1. Real-server UI screenshot POC
-
-Goal: use the normal `jbrowse.conf` and real Jellyfin server to harvest a few UI screenshots for learning/review.
-
-Output:
-
-```text
-screenshot/browser.svg
-screenshot/info.svg
-screenshot/subtitles.svg
-screenshot/help.svg
-```
-
-Implementation notes:
-
-- Keep this as a proof of concept, not a full test framework.
-- Use the real server and normal config/cache flow.
-- Do not launch `mpv`.
-- Do not add pytest or a fake Jellyfin server yet.
-- Keep `screenshot/` ignored because it can contain private media names.
-- Theme cycling works in the POC and SVG titles include the theme name, but Textual's SVG renderer may flatten visual differences between dark themes.
-- Later, compare Textual SVG export against a real terminal screenshot/capture if theme contrast matters for docs.
-
-Manual release check:
-
-- Run `python tools/ui_screenshot_poc.py`.
-- Confirm the SVG files are created under `screenshot/`.
-- Open at least one screenshot and confirm it looks like the real TUI.
-- Confirm screenshots use different themes without changing `jbrowse.conf`.
-- Confirm the SVG title shows the intended theme even if the rendered colors look too similar.
-
----
-
-## 2. Server-side safety guard
+## 1. Server-side safety guard
 
 Goal: keep track of code paths that can mutate Jellyfin/server state before we add playback reporting or other write APIs.
 
@@ -98,7 +67,7 @@ Implementation notes:
 
 ---
 
-## 3. Better help text / key map cleanup
+## 2. Better help text / key map cleanup
 
 Goal: keep help readable as controls grow.
 
@@ -119,7 +88,7 @@ Current help is acceptable, but every new feature should update the help page in
 
 ---
 
-## 4. Configurable mpv command by format
+## 3. Configurable mpv command by format
 
 Goal: allow practical per-format mpv launch command tuning from `jbrowse.conf`.
 
@@ -162,7 +131,7 @@ Implementation notes:
 
 ---
 
-## 5. Build files and Arch packaging skeleton
+## 4. Build files and Arch packaging skeleton
 
 Goal: add the boring-but-useful project files that make `jbrowse` easier to install, build, and package.
 
@@ -193,7 +162,7 @@ Implementation notes:
 
 ---
 
-## 6. Non-blocking refresh
+## 5. Non-blocking refresh
 
 Current behavior:
 
@@ -242,7 +211,7 @@ Do not add periodic refresh until manual non-blocking refresh is solid.
 
 ---
 
-## 7. Periodic refresh
+## 6. Periodic refresh
 
 After non-blocking refresh exists, consider config:
 
@@ -267,7 +236,7 @@ Requirements:
 
 ---
 
-## 8. Refresh after playback stops
+## 7. Refresh after playback stops
 
 After refresh is backgrounded, consider config:
 
@@ -285,7 +254,7 @@ This should wait until non-blocking refresh is implemented.
 
 ---
 
-## 9. PlaybackManager
+## 8. PlaybackManager
 
 Big architecture piece.
 
@@ -322,7 +291,7 @@ Do not cram all player logic into `BrowseApp`. `BrowseApp` should ask the Playba
 
 ---
 
-## 10. Spawn mpv in background
+## 9. Spawn mpv in background
 
 Current behavior:
 
@@ -358,7 +327,7 @@ Do this before Now Playing, mpv log page, or Jellyfin progress reporting.
 
 ---
 
-## 11. mpv output/log page
+## 10. mpv output/log page
 
 Hotkey idea:
 
@@ -395,7 +364,7 @@ Home/End
 
 ---
 
-## 12. mpv IPC
+## 11. mpv IPC
 
 Needed for real playback control.
 
@@ -435,7 +404,7 @@ When mpv IPC is implemented, update any stale-string / feature-guard checks for 
 
 ---
 
-## 13. Replace-current-playback prompt
+## 12. Replace-current-playback prompt
 
 If something is already playing and the user tries to play another item, ask first.
 
@@ -465,7 +434,7 @@ Jellyfin playback reporting may be cleaner if the old session is explicitly stop
 
 ---
 
-## 14. Now Playing page
+## 13. Now Playing page
 
 This should be the info page plus live playback state, not a separate tiny status page.
 
@@ -510,7 +479,7 @@ Needs:
 
 ---
 
-## 15. Pause / stop / seek controls
+## 14. Pause / stop / seek controls
 
 Possible controls:
 
@@ -528,7 +497,7 @@ Do not assume all modified keys work in every terminal. Test real key events bef
 
 ---
 
-## 16. Jellyfin playback reporting
+## 15. Jellyfin playback reporting
 
 After mpv IPC exists, implement Jellyfin playback reporting.
 
@@ -561,7 +530,7 @@ When this is implemented, update any stale-string / feature-guard checks for Jel
 
 ---
 
-## 17. Final playback position save
+## 16. Final playback position save
 
 When mpv exits or item is replaced:
 
@@ -579,7 +548,7 @@ Goal:
 
 ---
 
-## 18. Static bitrate selection
+## 17. Static bitrate selection
 
 Possible quality options:
 
@@ -614,7 +583,7 @@ Implementation notes:
 
 ---
 
-## 19. Change bitrate while playing
+## 18. Change bitrate while playing
 
 Not truly seamless.
 
@@ -635,7 +604,7 @@ Needs:
 
 ---
 
-## 20. Audio picker
+## 19. Audio picker
 
 After subtitle picker and mpv IPC, add audio track selection.
 
@@ -659,7 +628,7 @@ Robust implementation should use mpv IPC `track-list`.
 
 ---
 
-## 21. Split the giant file
+## 20. Split the giant file
 
 Do this later, after the app stabilizes further.
 
@@ -687,7 +656,7 @@ Suggested timing:
 
 ---
 
-## 22. Stabilize name / packaging
+## 21. Stabilize name / packaging
 
 Eventually settle on:
 
@@ -712,26 +681,25 @@ Do this after the core architecture is less volatile.
 ## Suggested order from here
 
 ```text
-1. Real-server UI screenshot POC
-2. Server-side safety guard
-3. Configurable mpv command by format
-4. Build files and Arch packaging skeleton
-5. Non-blocking refresh
-6. Cache refresh options
-7. PlaybackManager
-8. Background mpv
-9. mpv log page
-10. mpv IPC
-11. Now Playing page
-12. Replace playback prompt
-13. Jellyfin playback reporting
-14. Static bitrate/transcoding
-15. Audio picker
-16. Split into modules
-17. Packaging/name cleanup
+1. Server-side safety guard
+2. Configurable mpv command by format
+3. Build files and Arch packaging skeleton
+4. Non-blocking refresh
+5. Cache refresh options
+6. PlaybackManager
+7. Background mpv
+8. mpv log page
+9. mpv IPC
+10. Now Playing page
+11. Replace playback prompt
+12. Jellyfin playback reporting
+13. Static bitrate/transcoding
+14. Audio picker
+15. Split into modules
+16. Packaging/name cleanup
 ```
 
-## Reminder: completed 0.0.25 baseline work
+## Reminder: completed 0.0.26 baseline work
 
 The following are already considered done and tested:
 
@@ -743,6 +711,7 @@ Batman themes
 basic named page state
 simple item cache
 subtitle picker
+real-server UI screenshot POC
 README/docs
 example config
 gitignore

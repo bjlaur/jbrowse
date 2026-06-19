@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-## Unreleased
+## 0.0.26 - 2026-06-18
 
 Real-server UI screenshot POC.
 
