@@ -31,13 +31,12 @@ from jbrowse import (  # noqa: E402
     default_state_path,
     discover_themes,
     initial_theme,
+    load_fake_cache_data,
     load_cfg,
     load_item_cache,
     load_state,
     media_item_from_cache,
 )
-
-FIXTURE_DATA_PATH = Path(__file__).with_name("fake_cache_data.json")
 
 
 def log(message: str) -> None:
@@ -209,10 +208,7 @@ def fixture_cfg() -> Config:
 
 def fixture_items() -> list[MediaItem]:
     """Load committed fictional media through the normal cache-item decoder."""
-    try:
-        data = json.loads(FIXTURE_DATA_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Could not read fixture data {FIXTURE_DATA_PATH}: {exc}") from exc
+    data = load_fake_cache_data()
 
     items = []
     for row in data.get("items", []):
@@ -223,7 +219,7 @@ def fixture_items() -> list[MediaItem]:
             items.append(item)
 
     if not items:
-        raise RuntimeError(f"No valid fixture items found in {FIXTURE_DATA_PATH}")
+        raise RuntimeError("No valid fixture items found in fake cache data")
     return items
 
 

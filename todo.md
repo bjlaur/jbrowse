@@ -171,9 +171,10 @@ Keep IPC-specific work separate.
 
 In progress for the next release.
 
-- [x] The SVG harness defaults to committed fictional media in `tools/fake_cache_data.json`.
+- [x] The SVG harness defaults to committed fictional media in `tools/fake_cache_data.json` or `.json.zst`.
 - [x] Keep generated `screenshot/` files ignored; add selected documentation images only on request.
 - [x] Keep `--real` as an explicit cache/server mode for local inspection.
+- [x] Add `jbrowse --fake` for interactive fixture browsing without Jellyfin or cache/config writes.
 
 ---
 

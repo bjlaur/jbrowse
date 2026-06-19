@@ -718,6 +718,30 @@ class JellyfinClient:
         self.post_playback_report("/Sessions/Playing/Stopped", payload)
 
 
+class FakeJellyfinClient:
+    """Local fixture client used by --fake; it never contacts Jellyfin."""
+
+    def __init__(self, cfg: Config, items: list[MediaItem]):
+        self.cfg = cfg
+        self.auth = Auth(user_id="fixture-user", token="fixture-token")
+        self.items = items
+
+    def fetch_items(self) -> list[MediaItem]:
+        return list(self.items)
+
+    def stream_url(self, item: MediaItem) -> str:
+        return "file:///dev/null"
+
+    def report_playback_started(self, payload: dict[str, Any]) -> None:
+        pass
+
+    def report_playback_progress(self, payload: dict[str, Any]) -> None:
+        pass
+
+    def report_playback_stopped(self, payload: dict[str, Any]) -> None:
+        pass
+
+
 def optional_int(value: Any) -> Optional[int]:
     if value is None or value == "":
         return None
@@ -1255,6 +1279,57 @@ def load_item_cache(path: Path, cfg: Config, user_id: str) -> list[MediaItem]:
     return items
 
 
+def fake_cache_data_path() -> Path:
+    plain_path = script_dir() / "tools" / "fake_cache_data.json"
+    compressed_path = plain_path.with_suffix(plain_path.suffix + ".zst")
+    return compressed_path if compressed_path.exists() else plain_path
+
+
+def load_fake_cache_data() -> dict[str, Any]:
+    path = fake_cache_data_path()
+    try:
+        if path.suffix == ".zst":
+            result = subprocess.run(
+                ["zstd", "--decompress", "--quiet", "--stdout", str(path)],
+                check=True,
+                capture_output=True,
+            )
+            data = json.loads(result.stdout)
+        else:
+            data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        if path.exists():
+            die("zstd is required to read compressed fake cache data")
+        die(f"Missing fake cache data {path}")
+    except subprocess.CalledProcessError as exc:
+        die(f"Could not decompress fake cache data {path}: {exc}")
+    except OSError as exc:
+        die(f"Could not read fake cache data {path}: {exc}")
+    except json.JSONDecodeError as exc:
+        die(f"Could not parse fake cache data {path}: {exc}")
+
+    if not isinstance(data, dict):
+        die(f"Fake cache data {path} must contain a JSON object")
+    return data
+
+
+def load_fake_items() -> list[MediaItem]:
+    path = fake_cache_data_path()
+    data = load_fake_cache_data()
+
+    items = []
+    for row in data.get("items", []):
+        if not isinstance(row, dict):
+            continue
+        item = media_item_from_cache(row)
+        if item is not None:
+            items.append(item)
+
+    if not items:
+        die(f"No valid fake items found in {path}")
+    return items
+
+
 def write_item_cache(path: Path, cfg: Config, user_id: str, items: list[MediaItem]) -> None:
     data = {
         "cache_version": CACHE_VERSION,
@@ -1299,8 +1374,9 @@ class BrowseApp(App[object]):
         self.cfg = cfg
         self.client = client
         self.ui_state = ui_state
+        self.write_cache = write_cache_on_start
 
-        if write_cache_on_start:
+        if self.write_cache:
             user_id = self.client.auth.user_id if self.client.auth is not None else ""
             write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
 
@@ -1825,7 +1901,8 @@ class BrowseApp(App[object]):
             return
 
         user_id = self.client.auth.user_id if self.client.auth is not None else ""
-        write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
+        if self.write_cache:
+            write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
         self.refresh_queue.put(("ok", items))
 
     def poll_refresh_result(self) -> None:
@@ -2690,6 +2767,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", help="override config path")
     parser.add_argument("--state", help="override state path")
     parser.add_argument("--style", help="override Textual CSS style path")
+    parser.add_argument("--fake", action="store_true", help="browse fake cache data without Jellyfin")
     parser.add_argument("--print-config-path", action="store_true")
     parser.add_argument("--print-state-path", action="store_true")
     parser.add_argument("--print-style-path", action="store_true")
@@ -2703,6 +2781,8 @@ def browser_loop(
     themes: list[Theme],
     auto_refresh_on_start: bool,
     last_refresh_started_at: float,
+    write_cache: bool = True,
+    persist_theme: bool = True,
 ) -> int:
     theme_index = 0
     ui_state = UIState(view=cfg.sort_mode, display_mode=cfg.display_mode, sort_desc=cfg.sort_desc)
@@ -2720,6 +2800,7 @@ def browser_loop(
             items,
             theme.name,
             ui_state,
+            write_cache_on_start=write_cache,
             auto_refresh_on_start=auto_refresh_on_start,
             last_refresh_started_at=last_refresh_started_at,
             playback_manager=playback_manager,
@@ -2736,7 +2817,8 @@ def browser_loop(
 
         if isinstance(chosen, ThemeCycle):
             theme_index = (theme_index + 1) % len(themes)
-            persist_style_path(cfg, themes[theme_index])
+            if persist_theme:
+                persist_style_path(cfg, themes[theme_index])
             print(f"Theme: {themes[theme_index].name}", file=sys.stderr)
             continue
 
@@ -2772,41 +2854,54 @@ def main() -> int:
 
     themes = discover_themes(starting_style)
 
-    state = load_state(state_path)
-    client = JellyfinClient(cfg, state)
-
     print(f"Using config: {cfg.path}", file=sys.stderr)
-    print(f"Using state: {state.path}", file=sys.stderr)
     print(f"Using style: {starting_style.name}", file=sys.stderr)
     print(f"Discovered themes: {len(themes)}", file=sys.stderr)
-    item_cache_path = default_item_cache_path()
-
-    print(f"Using item cache: {item_cache_path}", file=sys.stderr)
-    print("Logging into Jellyfin...", file=sys.stderr)
-
-    try:
-        client.login()
-    except JellyfinError as exc:
-        die(f"Jellyfin error: {exc}")
-
-    user_id = client.auth.user_id if client.auth is not None else ""
-    items = load_item_cache(item_cache_path, cfg, user_id)
-    auto_refresh_on_start = bool(items)
-
-    if items:
-        print(f"Loaded {len(items)} cached items.", file=sys.stderr)
+    if args.fake:
+        items = load_fake_items()
+        client = FakeJellyfinClient(cfg, items)
+        auto_refresh_on_start = False
+        print(f"Using {len(items)} fake items from {fake_cache_data_path()}.", file=sys.stderr)
     else:
-        print("Fetching Jellyfin library...", file=sys.stderr)
+        state = load_state(state_path)
+        client = JellyfinClient(cfg, state)
+        item_cache_path = default_item_cache_path()
+
+        print(f"Using state: {state.path}", file=sys.stderr)
+        print(f"Using item cache: {item_cache_path}", file=sys.stderr)
+        print("Logging into Jellyfin...", file=sys.stderr)
         try:
-            items = client.fetch_items()
+            client.login()
         except JellyfinError as exc:
             die(f"Jellyfin error: {exc}")
-        write_item_cache(item_cache_path, cfg, user_id, items)
+
+        user_id = client.auth.user_id if client.auth is not None else ""
+        items = load_item_cache(item_cache_path, cfg, user_id)
+        auto_refresh_on_start = bool(items)
+
+        if items:
+            print(f"Loaded {len(items)} cached items.", file=sys.stderr)
+        else:
+            print("Fetching Jellyfin library...", file=sys.stderr)
+            try:
+                items = client.fetch_items()
+            except JellyfinError as exc:
+                die(f"Jellyfin error: {exc}")
+            write_item_cache(item_cache_path, cfg, user_id, items)
 
     if not items:
         die("No playable Jellyfin items found.")
 
-    return browser_loop(cfg, client, items, themes, auto_refresh_on_start, time.monotonic())
+    return browser_loop(
+        cfg,
+        client,
+        items,
+        themes,
+        auto_refresh_on_start,
+        time.monotonic(),
+        write_cache=not args.fake,
+        persist_theme=not args.fake,
+    )
 
 
 if __name__ == "__main__":

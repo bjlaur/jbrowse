@@ -372,7 +372,19 @@ Experimental fixture UI screenshots:
 python tools/svg_screenshot_poc.py
 ```
 
-This writes local SVG screenshots under `screenshot/` using committed fictional data from `tools/fake_cache_data.json`. The output is ignored by git so screenshots can be regenerated freely and only selected documentation images need to be added deliberately.
+This writes local SVG screenshots under `screenshot/` using committed fictional data from `tools/fake_cache_data.json` or, when present, `tools/fake_cache_data.json.zst`. The output is ignored by git so screenshots can be regenerated freely and only selected documentation images need to be added deliberately.
+
+Browse the same fixture data interactively without contacting Jellyfin or changing the real item cache/config:
+
+```bash
+./jbrowse.py --fake
+```
+
+To compress a large fixture file in place:
+
+```bash
+tools/compress_fake_cache.sh
+```
 
 Use your local cache and Jellyfin server only when explicitly wanted:
 

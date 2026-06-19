@@ -6,12 +6,13 @@ Screenshot fixture work in progress.
 
 Changes:
 
-- Added committed fictional screenshot data in `tools/fake_cache_data.json`.
+- Added committed fictional screenshot data in `tools/fake_cache_data.json`, with optional `.json.zst` loading for large fixtures.
 - Made fixture data the default input for `tools/svg_screenshot_poc.py`.
 - Load fixture entries through the normal cache-item decoder, including mock filenames, metadata, and subtitle tracks.
 - Kept `screenshot/` ignored so regenerated output is not committed by default.
 - Added explicit `--real` mode for local cache/Jellyfin screenshots; it fetches from Jellyfin only when no local cache is available.
 - Made fixture screenshots start from the first committed theme rather than a local style override.
+- Added `jbrowse --fake` to browse fixture data interactively without Jellyfin or real cache/config writes.
 
 Testing summary:
 
