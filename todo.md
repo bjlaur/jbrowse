@@ -120,6 +120,8 @@ This unlocks:
 
 ## 2. Background mpv follow-ups
 
+Likely next release: `0.0.33` should be a small background playback cleanup release, not full mpv IPC.
+
 Current behavior:
 
 ```text
@@ -136,6 +138,14 @@ stop active mpv from jbrowse
 handle app quit while playback is active
 switch/focus mpv output view
 ```
+
+Suggested `0.0.33` scope:
+
+- Add a simple hotkey to stop active mpv from `jbrowse`.
+- Make quitting while mpv is active deliberate.
+- Lightly polish the `Ctrl+G` mpv output page.
+- Update the screenshot harness if the log page visual changes.
+- Test with compile, SVG harness, and fake playback smoke.
 
 Keep IPC-specific work separate.
 
