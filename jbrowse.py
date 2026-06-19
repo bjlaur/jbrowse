@@ -21,7 +21,7 @@ Secret theme preview:
   Ctrl+X cycles discovered .tcss files from themes/ and config dirs.
 
 Playback:
-  mpv --hwdec=auto --force-media-title="$title" "$url"
+  mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
 
 Dependencies:
   pip install textual requests
@@ -39,6 +39,7 @@ import re
 import secrets
 import shlex
 import socket
+import string
 import subprocess
 import sys
 import textwrap
@@ -66,10 +67,11 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.26"
+CLIENT_VERSION = "0.0.27"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
+DEFAULT_MPV_CMD_TEMPLATE = 'mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"'
 SORT_MODE_ORDER = ["added", "played", "premiere", "name", "series"]
 SORT_MODE_LABELS = {
     "added": "recently added",
@@ -382,6 +384,7 @@ class Config:
     max_display_items: int
     display_mode: str
     style_path: Optional[Path]
+    mpv_cmd: list[str]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -443,6 +446,33 @@ def missing_cfg_message(path: Path) -> str:
     )
 
 
+def is_placeholder_token(token: str, name: str) -> bool:
+    return token in {f"${name}", f"${{{name}}}", f"{{{name}}}"}
+
+
+def token_has_placeholder(token: str, name: str) -> bool:
+    return any(placeholder in token for placeholder in (f"${name}", f"${{{name}}}", f"{{{name}}}"))
+
+
+def load_mpv_cmd(parser: configparser.ConfigParser, path: Path) -> list[str]:
+    raw = parser.get("mpv", "mpv_cmd", fallback=DEFAULT_MPV_CMD_TEMPLATE).strip()
+
+    if not raw:
+        die(f"Empty mpv.mpv_cmd in {path}")
+
+    try:
+        command = shlex.split(raw)
+    except ValueError as exc:
+        die(f"Could not parse mpv.mpv_cmd in {path}: {exc}")
+
+    if not command:
+        die(f"Empty mpv.mpv_cmd in {path}")
+    if not any(token_has_placeholder(token, "url") for token in command):
+        die("mpv.mpv_cmd must include $url or {url}")
+
+    return command
+
+
 def load_cfg(path: Path) -> Config:
     if not path.exists():
         die(missing_cfg_message(path))
@@ -483,6 +513,7 @@ def load_cfg(path: Path) -> Config:
 
     style_value = parser.get("style", "path", fallback="")
     style_path = expand_style_path(style_value, path)
+    mpv_cmd = load_mpv_cmd(parser, path)
 
     return Config(
         path=path,
@@ -499,6 +530,7 @@ def load_cfg(path: Path) -> Config:
         ),
         display_mode=display_mode,
         style_path=style_path,
+        mpv_cmd=mpv_cmd,
     )
 
 
@@ -2072,25 +2104,63 @@ def debug_mpv_command(args: list[str]) -> str:
     return shlex.join([redact_url(arg) for arg in args])
 
 
-def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> int:
-    url = client.stream_url(item)
+def expand_mpv_token(token: str, values: dict[str, str]) -> str:
+    expanded = string.Template(token).safe_substitute(values)
 
-    args = [
-        "mpv",
-        "--hwdec=auto",
-        f"--force-media-title={item.filename}",
-    ]
+    for name, value in values.items():
+        expanded = expanded.replace(f"{{{name}}}", value)
 
+    return expanded
+
+
+def build_mpv_command(
+    cfg: Config,
+    item: MediaItem,
+    url: str,
+    subtitle_choice: str,
+) -> tuple[list[str], Optional[SubtitleTrack]]:
     subtitle_track = subtitle_track_for_choice(item, subtitle_choice)
+    subtitle_arg = ""
+    start_arg = ""
+
     if subtitle_choice == "none":
-        args.append("--sid=no")
+        subtitle_arg = "--sid=no"
     elif subtitle_track is not None:
-        args.append(f"--sid={subtitle_track.mpv_sid}")
+        subtitle_arg = f"--sid={subtitle_track.mpv_sid}"
 
     if item.resume_seconds > 0:
-        args.append(f"--start={item.resume_seconds:.3f}")
+        start_arg = f"--start={item.resume_seconds:.3f}"
 
-    args.append(url)
+    values = {
+        "url": url,
+        "title": item.title,
+        "filename": item.filename,
+        "subtitle": subtitle_arg,
+        "start": start_arg,
+    }
+
+    args: list[str] = []
+    for token in cfg.mpv_cmd:
+        if is_placeholder_token(token, "subtitle"):
+            if subtitle_arg:
+                args.append(subtitle_arg)
+            continue
+
+        if is_placeholder_token(token, "start"):
+            if start_arg:
+                args.append(start_arg)
+            continue
+
+        expanded = expand_mpv_token(token, values)
+        if expanded:
+            args.append(expanded)
+
+    return (args, subtitle_track)
+
+
+def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> int:
+    url = client.stream_url(item)
+    args, subtitle_track = build_mpv_command(client.cfg, item, url, subtitle_choice)
 
     print(f"Now Playing: \033[1;32m{item.filename}\033[0m")
     if subtitle_choice == "none":
@@ -2103,7 +2173,7 @@ def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "a
     try:
         process = subprocess.Popen(args)
     except FileNotFoundError:
-        die("Could not find mpv executable: mpv")
+        die(f"Could not find mpv executable: {args[0]}")
         return 1
 
     try:

@@ -1,5 +1,32 @@
 # CHANGELOG.md
 
+## 0.0.27 - 2026-06-18
+
+Configurable mpv command release.
+
+Changes:
+
+- Added optional `[mpv] mpv_cmd` config as a single playback command template.
+- Added placeholders for `$url`, `$filename`, `$title`, `$subtitle`, and `$start`.
+- Kept subtitle and resume behavior in the command template instead of adding format-specific command selection.
+- Documented the current no-server-write expectation and the future mutation boundary.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/ui_screenshot_poc.py`.
+- Passed config/state/style path smoke checks.
+- Confirmed default `mpv_cmd` expands to the previous playback command shape.
+- Confirmed custom `mpv_cmd` parsing and placeholder expansion.
+- Confirmed subtitle placeholders expand for `auto`, `none`, and selected subtitle tracks.
+- Ran `python tools/ui_screenshot_poc.py` against the real configured Jellyfin server.
+- Confirmed future mpv IPC / Jellyfin playback-reporting guard strings only appear in `AGENTS.md`.
+
+Manual release check:
+
+- Play one item with `auto`, `none`, and a selected subtitle track.
+- Confirm the `DEBUG mpv command` line shows the expected expanded command.
+- Confirm normal playback and screenshots still work.
+
 ## 0.0.26 - 2026-06-18
 
 Real-server UI screenshot POC.

@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.26
+0.0.27
 ```
 
 Current main script:
@@ -31,6 +31,7 @@ Current features:
 - Episode navigation from info page.
 - Subtitle picker from the info page.
 - `mpv` playback.
+- Configurable `mpv_cmd` playback template.
 - Resume start position from Jellyfin user data.
 - Sort modes:
   - recently added
@@ -116,6 +117,9 @@ display_mode = title
 
 [style]
 # path = themes/jbrowse-batman-low-contrast.tcss
+
+[mpv]
+# mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
 ```
 
 ## Config lookup
@@ -163,6 +167,37 @@ Lookup/write behavior:
 The app still logs into Jellyfin on startup, but if the item cache exists it avoids a full library fetch.
 
 Manual refresh with `Ctrl+R` fetches a new item list and writes the cache.
+
+## mpv command config
+
+`jbrowse` launches playback with this built-in command template:
+
+```text
+mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
+```
+
+You can override it in `jbrowse.conf`:
+
+```ini
+[mpv]
+mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
+```
+
+Supported placeholders:
+
+```text
+$url       Jellyfin stream URL, required
+$filename  filename used for mpv's media title
+$title     Jellyfin display title
+$subtitle  --sid=no or --sid=N, omitted for auto subtitles
+$start     --start=SECONDS, omitted when there is no resume position
+```
+
+`{url}` style placeholders also work. Commands are parsed with shell-like quoting, so quote paths or values that contain spaces.
+
+## Server writes
+
+Current `jbrowse` server calls are expected to be read/playback-only: login, item fetching, screenshot harvesting, and stream URL construction. Future features that write Jellyfin state, such as watched-state changes or playback progress reporting, should be documented and gated intentionally when they are added.
 
 ## Controls
 

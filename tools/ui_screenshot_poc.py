@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +39,10 @@ from jbrowse import (  # noqa: E402
 )
 
 
+def log(message: str) -> None:
+    print(f"[screenshot] {message}", file=sys.stderr)
+
+
 def choose_demo_item(items: list[MediaItem]) -> MediaItem:
     for item in items:
         if item.subtitle_tracks:
@@ -49,13 +54,24 @@ def choose_demo_item(items: list[MediaItem]) -> MediaItem:
 def load_items(cfg: Config, client: JellyfinClient) -> list[MediaItem]:
     user_id = client.auth.user_id if client.auth is not None else ""
     cache_path = default_item_cache_path()
+
+    start = time.perf_counter()
+    log(f"loading item cache: {cache_path}")
     items = load_item_cache(cache_path, cfg, user_id)
+    log(f"item cache returned {len(items)} items in {time.perf_counter() - start:.2f}s")
 
     if items:
         return items
 
+    start = time.perf_counter()
+    log("cache miss; fetching Jellyfin items")
     items = client.fetch_items()
+    log(f"fetched {len(items)} items in {time.perf_counter() - start:.2f}s")
+
+    start = time.perf_counter()
+    log(f"writing item cache: {cache_path}")
     write_item_cache(cache_path, cfg, user_id, items)
+    log(f"wrote item cache in {time.perf_counter() - start:.2f}s")
     return items
 
 
@@ -88,11 +104,13 @@ def make_ui_state(cfg: Config, demo_item: MediaItem) -> UIState:
     )
 
 
-async def settle(app: BrowseApp, pilot) -> None:
+async def settle(app: BrowseApp, pilot, label: str) -> None:
+    start = time.perf_counter()
     app.render_items()
     app.update_status()
     await pilot.pause(1.0)
     await pilot.wait_for_scheduled_animations()
+    log(f"{label}: settled in {time.perf_counter() - start:.2f}s")
 
 
 async def capture_screenshot(
@@ -105,6 +123,9 @@ async def capture_screenshot(
     filename: str,
     view: str,
 ) -> None:
+    capture_start = time.perf_counter()
+    log(f"{filename}: starting {view} capture with {theme.name}")
+
     app_cls = type(
         f"ScreenshotBrowseApp{view.title()}",
         (BrowseApp,),
@@ -122,28 +143,32 @@ async def capture_screenshot(
     )
 
     async with app.run_test(size=size) as pilot:
-        await settle(app, pilot)
+        await settle(app, pilot, f"{filename} initial")
 
         if view == "info":
             app.open_info()
-            await settle(app, pilot)
+            await settle(app, pilot, f"{filename} info")
         elif view == "subtitles":
             app.open_info()
-            await settle(app, pilot)
+            await settle(app, pilot, f"{filename} info")
             app.open_subtitle_picker()
-            await settle(app, pilot)
+            await settle(app, pilot, f"{filename} subtitles")
         elif view == "help":
             app.previous_page = app.page if app.page in {"browser", "info"} else "browser"
             app.page = "help"
             app.render_help()
-            await settle(app, pilot)
+            await settle(app, pilot, f"{filename} help")
 
         output_path = output_dir / filename
+        export_start = time.perf_counter()
         output_path.write_text(
             app.export_screenshot(title=f"{filename} - {theme.name}"),
             encoding="utf-8",
         )
+        log(f"{filename}: exported in {time.perf_counter() - export_start:.2f}s")
         print(f"{filename}: {theme.name}")
+
+    log(f"{filename}: finished in {time.perf_counter() - capture_start:.2f}s")
 
 
 async def save_screenshots(
@@ -194,18 +219,24 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    total_start = time.perf_counter()
     args = parse_args()
 
     cfg_path = Path(args.config).expanduser() if args.config else default_cfg_path()
     state_path = Path(args.state).expanduser() if args.state else default_state_path()
     output_dir = Path(args.output).expanduser()
 
+    log(f"loading config: {cfg_path}")
     cfg = load_cfg(cfg_path)
+    log(f"loading state: {state_path}")
     state = load_state(state_path)
     client = JellyfinClient(cfg, state)
 
     try:
+        start = time.perf_counter()
+        log("logging in to Jellyfin")
         client.login()
+        log(f"logged in in {time.perf_counter() - start:.2f}s")
         items = load_items(cfg, client)
     except JellyfinError as exc:
         print(f"Jellyfin error: {exc}", file=sys.stderr)
@@ -218,6 +249,7 @@ def main() -> int:
     asyncio.run(save_screenshots(cfg, client, items, output_dir, args.size))
 
     print(f"Saved screenshots to {output_dir}")
+    log(f"finished all screenshots in {time.perf_counter() - total_start:.2f}s")
     return 0
 
 

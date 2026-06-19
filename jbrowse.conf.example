@@ -34,3 +34,9 @@ display_mode = title
 [style]
 # Optional. Relative paths are relative to this jbrowse.conf file.
 # path = themes/jbrowse-batman-low-contrast.tcss
+
+[mpv]
+# Optional. Commands are parsed with shell-like quoting.
+# $subtitle and $start are omitted when they do not apply.
+# Supported placeholders: $url, $filename, $title, $subtitle, $start.
+# mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"

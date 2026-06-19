@@ -28,7 +28,7 @@
 - Do not reintroduce Textual `ListView`/`ListItem` for media rows. The app uses one `Static` widget (`ItemPane`) that renders visible rows only; this is critical for large libraries.
 - `Ctrl+I` is not suitable for info because terminals treat it as Tab.
 - F2 was rejected as an info key. Current behavior is `Enter` for info and `Shift+Enter` for direct playback.
-- No `[player]` config yet. `mpv` playback is intentionally simple.
+- No `[player]` config yet. `mpv` playback is intentionally simple, with only the lightweight `[mpv] mpv_cmd` command template.
 - Manual refresh is currently blocking. Threaded refresh is planned but should be done separately from playback architecture.
 
 ## Verification
@@ -65,9 +65,9 @@ These strings may become valid later for mpv IPC, Jellyfin playback reporting, o
 
 ## Near-Term Roadmap
 
-1. Stabilize the promoted 0.0.26 baseline.
-2. Add configurable `mpv_cmd` by format, or add build files/PKGBUILD if packaging polish feels useful first.
+1. Stabilize the promoted 0.0.27 baseline.
+2. Add build files/PKGBUILD if packaging polish feels useful first.
 3. Add threaded refresh if refresh/startup still feels annoying.
 4. Later, introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
 
-Keep those phases separate. Do not bundle `mpv_cmd`, threaded refresh, mpv IPC, and playback reporting into one large change.
+Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.
