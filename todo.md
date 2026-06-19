@@ -230,6 +230,8 @@ Follow-up:
 
 ## 5. Better help text / key map cleanup
 
+Developer note: this might be unnecessary for now. Revisit only if the help page actually gets too large or hard to scan.
+
 Goal: keep help readable as controls grow.
 
 Suggested help sections:
@@ -251,6 +253,8 @@ Current help is acceptable, but every new feature should update the help page in
 
 ## 6. Server-side safety guard
 
+Developer note: this should probably happen soon, right after the screenshot fixtures release, because `jbrowse` now intentionally reports playback state to Jellyfin.
+
 Goal: keep track of code paths that can mutate Jellyfin/server state before we add playback reporting or other write APIs.
 
 Current expectation:
@@ -267,6 +271,8 @@ Implementation notes:
 ---
 
 ## 7. Future mpv command profiles
+
+Developer note: this may be unnecessary. The single `mpv_cmd` template might be enough.
 
 The app currently has one configurable `mpv_cmd` template.
 
@@ -392,6 +398,8 @@ Needs:
 ---
 
 ## 11. Pause / stop / seek controls
+
+Developer note: this might be unnecessary. Think through why `jbrowse` should own pause/seek controls when mpv already has native controls.
 
 Possible controls:
 
@@ -520,6 +528,8 @@ Needs:
 
 After subtitle picker and mpv IPC, add audio track selection.
 
+Also investigate how Jellyfin chooses default audio/subtitle tracks. The desired behavior is something like "Japanese audio by default, English subtitles always on, fallback to SDH," but Jellyfin defaults can be confusing and unreliable in practice.
+
 Possible controls:
 
 ```text
@@ -632,19 +642,21 @@ The current README has a bunch of information it probably does not need. Discuss
 ## Suggested order from here
 
 ```text
-1. mpv IPC
-2. Accurate Jellyfin playback reporting
-3. Background mpv
-4. mpv log page
-5. Now Playing page
-6. Replace playback prompt
-7. Static bitrate/transcoding
-8. Audio picker
-9. Better help text / key map cleanup
-10. Split into modules
-11. Build files and Arch packaging skeleton
-12. Packaging/name cleanup
-13. Rewrite README from scratch
+1. Screenshot publishing fixtures
+2. Server-side safety guard
+3. Background playback cleanup
+4. mpv IPC
+5. Accurate Jellyfin playback reporting
+6. mpv log page
+7. Now Playing page
+8. Replace playback prompt
+9. Static bitrate/transcoding
+10. Audio picker
+11. Better help text / key map cleanup
+12. Split into modules
+13. Build files and Arch packaging skeleton
+14. Packaging/name cleanup
+15. Rewrite README from scratch
 ```
 
 ## Reminder: completed 0.0.26 baseline work
