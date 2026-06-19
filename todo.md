@@ -528,7 +528,7 @@ Needs:
 
 After subtitle picker and mpv IPC, add audio track selection.
 
-Also investigate how Jellyfin chooses default audio/subtitle tracks. The desired behavior is something like "Japanese audio by default, English subtitles always on, fallback to SDH," but Jellyfin defaults can be confusing and unreliable in practice.
+Also investigate how Jellyfin chooses default audio/subtitle tracks. The desired behavior is something like "Japanese audio by default, English subtitles always on, fallback to SDH," but Jellyfin defaults can be confusing and unreliable in practice. If Jellyfin cannot express this well enough, consider letting `jbrowse` own these playback defaults itself.
 
 Possible controls:
 
