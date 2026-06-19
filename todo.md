@@ -58,18 +58,18 @@ Shift+Enter  direct playback
 
 ## Completed
 
-- [x] ~~Subtitle selection from info screen.~~ Released in `0.0.25`.
-- [x] ~~Create `CHANGELOG.md` with compact release notes and testing summaries.~~ Released in `0.0.25`.
-- [x] ~~Real-server UI screenshot POC.~~ Released in `0.0.26`.
-- [x] ~~Single configurable `mpv_cmd` playback template.~~ Released in `0.0.27`.
-- [x] ~~Document current server-side mutation boundary.~~ Released in `0.0.27`.
-- [x] ~~Non-blocking manual refresh and cached-startup background refresh.~~ Released in `0.0.28`.
-- [x] ~~Periodic refresh while recently active.~~ Released in `0.0.29`.
-- [x] ~~PlaybackManager with minimal Jellyfin playback reporting.~~ Released in `0.0.30`.
-- [x] ~~Background refresh after playback returns.~~ Released in `0.0.30`.
-- [x] ~~Numbered theme cycle order and SVG screenshot harness checks.~~ Released in `0.0.31`.
-- [x] ~~Background mpv while jbrowse stays open.~~ Released in `0.0.32`.
-- [x] ~~mpv output page.~~ Released in `0.0.32`.
+- [x] Subtitle selection from info screen. Released in `0.0.25`.
+- [x] Create `CHANGELOG.md` with compact release notes and testing summaries. Released in `0.0.25`.
+- [x] Real-server UI screenshot POC. Released in `0.0.26`.
+- [x] Single configurable `mpv_cmd` playback template. Released in `0.0.27`.
+- [x] Document current server-side mutation boundary. Released in `0.0.27`.
+- [x] Non-blocking manual refresh and cached-startup background refresh. Released in `0.0.28`.
+- [x] Periodic refresh while recently active. Released in `0.0.29`.
+- [x] PlaybackManager with minimal Jellyfin playback reporting. Released in `0.0.30`.
+- [x] Background refresh after playback returns. Released in `0.0.30`.
+- [x] Numbered theme cycle order and SVG screenshot harness checks. Released in `0.0.31`.
+- [x] Background mpv while jbrowse stays open. Released in `0.0.32`.
+- [x] mpv output page. Released in `0.0.32`.
 
 ---
 
