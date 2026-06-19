@@ -621,6 +621,14 @@ Do this after the core architecture is less volatile.
 
 ---
 
+## 20. Rewrite README from scratch
+
+Very late cleanup item.
+
+The current README has a bunch of information it probably does not need. Discuss what should be there and what should not, then rewrite it from scratch instead of continuing to patch it forever.
+
+---
+
 ## Suggested order from here
 
 ```text
@@ -636,6 +644,7 @@ Do this after the core architecture is less volatile.
 10. Split into modules
 11. Build files and Arch packaging skeleton
 12. Packaging/name cleanup
+13. Rewrite README from scratch
 ```
 
 ## Reminder: completed 0.0.26 baseline work
