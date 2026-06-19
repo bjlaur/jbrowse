@@ -440,7 +440,7 @@ def missing_cfg_message(path: Path) -> str:
         f"No config found. Create {path} with something like:\n\n"
         "[jellyfin]\n"
         "url = http://127.0.0.1:8096\n"
-        "username = bryan\n"
+        "username = your-login\n"
         "password = your-password\n\n"
         "[library]\n"
         "types = Movie,Episode,Video,MusicVideo\n\n"

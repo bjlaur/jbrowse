@@ -106,7 +106,7 @@ Example:
 ```ini
 [jellyfin]
 url = http://127.0.0.1:8096
-username = bryan
+username = your-login
 password = your-password
 
 [library]
