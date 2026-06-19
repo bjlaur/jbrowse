@@ -156,6 +156,13 @@ Config guard idea to discuss before implementing:
 - Refuse or warn if an older still-running `jbrowse` instance might overwrite newer config changes.
 - Keep this very small if it happens; the idea may be unnecessary or replaced by a better stale-write guard.
 
+Alternative stale-write guard idea:
+
+- On startup, remember `jbrowse.conf` mtime and/or content hash.
+- Before writing config, check whether the file changed since startup.
+- If it changed, refuse the write or show a clear warning instead of overwriting.
+- This may solve the old-running-instance problem without manually bumping a hidden release marker.
+
 Keep IPC-specific work separate.
 
 ---
