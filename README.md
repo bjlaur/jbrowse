@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.27
+0.0.28
 ```
 
 Current main script:
@@ -42,6 +42,8 @@ Current features:
 - Sort mode and sort direction persistence.
 - Theme cycling.
 - Simple item cache for faster startup.
+- Background Jellyfin refresh after cached startup.
+- Non-blocking manual refresh with `Ctrl+R`.
 - Example config and gitignore.
 - Theme files under `themes/`, including Batman low/high contrast themes.
 
@@ -52,7 +54,6 @@ Not implemented yet:
 - Now Playing page.
 - Jellyfin playback progress reporting.
 - Static bitrate/transcoding selection.
-- Threaded/non-blocking refresh.
 - Periodic refresh.
 
 ## Requirements
@@ -164,9 +165,9 @@ Lookup/write behavior:
 1. Use `jbrowse.items.json` next to the script if it exists.
 2. Otherwise use `~/.cache/jbrowse/jbrowse.items.json`.
 
-The app still logs into Jellyfin on startup, but if the item cache exists it avoids a full library fetch.
+The app still logs into Jellyfin on startup, but if the item cache exists it opens from cache first and starts a background refresh.
 
-Manual refresh with `Ctrl+R` fetches a new item list and writes the cache.
+Manual refresh with `Ctrl+R` fetches a new item list in the background and writes the cache. Refresh status appears in the bottom status bar.
 
 ## mpv command config
 
@@ -216,7 +217,7 @@ Home/End     jump to first/last shown result
 Typing       from list: return to search and keep typed char
 Esc          clear search
 /pattern     regex search
-Ctrl+R       refresh Jellyfin list
+Ctrl+R       refresh Jellyfin list in the background
 Ctrl+X       cycle theme and save it to jbrowse.conf
 Ctrl+L       show help
 F1 or ?      show help
@@ -229,6 +230,7 @@ Ctrl+C       quit
 q/backspace  close info
 Enter        play shown item
 s            open subtitle picker
+Ctrl+R       refresh Jellyfin list in the background
 ←/→          previous/next episode
 [/]          previous/next season
 ↑/↓          scroll

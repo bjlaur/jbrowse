@@ -35,6 +35,7 @@ import json
 import dataclasses
 import datetime as dt
 import os
+import queue
 import re
 import secrets
 import shlex
@@ -42,6 +43,7 @@ import socket
 import string
 import subprocess
 import sys
+import threading
 import textwrap
 import urllib.parse
 from pathlib import Path
@@ -67,7 +69,7 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.27"
+CLIENT_VERSION = "0.0.28"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
@@ -227,10 +229,6 @@ class Theme:
 
 
 class ThemeCycle:
-    pass
-
-
-class RefreshRequest:
     pass
 
 
@@ -1243,6 +1241,7 @@ class BrowseApp(App[object]):
         theme_name: str,
         ui_state: UIState,
         write_cache_on_start: bool = True,
+        auto_refresh_on_start: bool = False,
     ):
         super().__init__()
         self.cfg = cfg
@@ -1275,6 +1274,12 @@ class BrowseApp(App[object]):
         self.subtitle_index = 0
         self.sort_desc = ui_state.sort_desc
         self._ignore_input_change = False
+        self.auto_refresh_on_start = auto_refresh_on_start
+        self.refreshing = False
+        self.refresh_message = ""
+        self.refresh_error = ""
+        self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
+        self.refresh_thread: Optional[threading.Thread] = None
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -1316,6 +1321,9 @@ class BrowseApp(App[object]):
         else:
             self.query.focus()
             self.render_items()
+
+        if self.auto_refresh_on_start:
+            self.start_background_refresh("startup")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if self._ignore_input_change:
@@ -1375,14 +1383,27 @@ class BrowseApp(App[object]):
 
         return "auto"
 
-    def update_subtitle_status(self) -> None:
-        if self.info_item is None:
-            self.bottom_status.update(f"style: {self.theme_name}")
-            return
+    def bottom_status_text(self, prefix: str = "") -> str:
+        parts = []
 
-        self.bottom_status.update(
-            f"subtitle: {self.subtitle_choice_label(self.info_item)} | style: {self.theme_name}"
-        )
+        if prefix:
+            parts.append(prefix)
+        if self.refreshing:
+            parts.append(self.refresh_message or "refreshing...")
+        elif self.refresh_error:
+            parts.append(self.refresh_error)
+        elif self.refresh_message:
+            parts.append(self.refresh_message)
+
+        parts.append(f"style: {self.theme_name}")
+        return " | ".join(parts)
+
+    def update_subtitle_status(self) -> None:
+        prefix = ""
+        if self.info_item is not None:
+            prefix = f"subtitle: {self.subtitle_choice_label(self.info_item)}"
+
+        self.bottom_status.update(self.bottom_status_text(prefix))
 
     def playback_request(self, item: MediaItem) -> PlaybackRequest:
         return PlaybackRequest(item=item, subtitle_choice=self.subtitle_choice(item))
@@ -1403,6 +1424,11 @@ class BrowseApp(App[object]):
         if event.key in {"ctrl+c", "ctrl+q"}:
             self.save_ui_state()
             self.exit(None)
+            event.stop()
+            return
+
+        if event.key == "ctrl+r":
+            self.start_background_refresh("manual")
             event.stop()
             return
 
@@ -1484,12 +1510,6 @@ class BrowseApp(App[object]):
 
         if event.key == "ctrl+o":
             self.toggle_sort_order()
-            event.stop()
-            return
-
-        if event.key == "ctrl+r":
-            self.show_refreshing()
-            self.set_timer(0.01, self.refresh_from_jellyfin)
             event.stop()
             return
 
@@ -1607,37 +1627,72 @@ class BrowseApp(App[object]):
         )
         return Align.center(panel, vertical="middle")
 
-    def show_refreshing(self) -> None:
-        text = Text()
-        text.append("Refreshing Jellyfin state...", style="bold")
-        text.append("\n\n")
-        text.append("Please wait.", style="dim")
-        self.listbox.update(self.overlay_panel(text, "Refresh"))
-        self.status.update("refreshing...")
-        self.bottom_status.update(f"style: {self.theme_name}")
+    def start_background_refresh(self, reason: str) -> None:
+        if self.refreshing:
+            self.refresh_message = "refresh already running"
+            self.update_bottom_status()
+            return
 
-    def refresh_from_jellyfin(self) -> None:
+        self.refreshing = True
+        self.refresh_error = ""
+        self.refresh_message = "refreshing..."
+        self.update_bottom_status()
+
+        self.refresh_thread = threading.Thread(
+            target=self.refresh_worker,
+            name="jbrowse-refresh",
+            daemon=True,
+            args=(reason,),
+        )
+        self.refresh_thread.start()
+        self.set_timer(0.1, self.poll_refresh_result)
+
+    def refresh_worker(self, reason: str) -> None:
         try:
             items = self.client.fetch_items()
         except JellyfinError as exc:
-            text = Text()
-            text.append(f"Jellyfin refresh failed: {exc}", style="bold")
-            text.append("\n\n")
-            text.append("Press any key to continue.", style="dim")
-            self.listbox.update(self.overlay_panel(text, "Refresh failed"))
-            self.previous_page = self.page if self.page in {"browser", "info"} else "browser"
-            self.page = "help"
+            self.refresh_queue.put(("error", str(exc)))
             return
 
         user_id = self.client.auth.user_id if self.client.auth is not None else ""
         write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
+        self.refresh_queue.put(("ok", items))
+
+    def poll_refresh_result(self) -> None:
+        try:
+            status, payload = self.refresh_queue.get_nowait()
+        except queue.Empty:
+            if self.refreshing:
+                self.set_timer(0.1, self.poll_refresh_result)
+            return
+
+        self.refreshing = False
+        self.refresh_message = ""
+
+        if status == "error":
+            self.refresh_error = f"refresh failed: {payload}"
+            self.update_bottom_status()
+            return
+
+        self.refresh_error = ""
+        self.apply_refreshed_items(payload)
+
+    def apply_refreshed_items(self, items: list[MediaItem]) -> None:
+        selected_id = self.current_selected_item_id()
+        old_scroll_offset = self.scroll_offset
+        info_item_id = self.info_item.id if self.info_item is not None else ""
+        old_info_scroll = self.info_scroll
 
         self.all_items_raw = items
         self.views = sorted_views(items)
         self.all_count = len(items)
-        self.selected_index = 0
-        self.scroll_offset = 0
-        self.apply_filter()
+        self.ui_state.selected_item_id = selected_id
+        self.ui_state.scroll_offset = old_scroll_offset
+        if info_item_id:
+            self.info_item = find_item_by_id(items, info_item_id) or self.info_item
+        self.info_scroll = old_info_scroll
+        self.refresh_message = f"refreshed {len(items)} items"
+        self.apply_filter(restore=True)
 
     def cycle_sort_mode(self, direction: int = 1) -> None:
         try:
@@ -2072,7 +2127,13 @@ class BrowseApp(App[object]):
         parts.append("F1 help")
 
         self.status.update(" | ".join(parts))
-        self.bottom_status.update(f"style: {self.theme_name}")
+        self.update_bottom_status()
+
+    def update_bottom_status(self) -> None:
+        if self.page in {"info", "subtitles"}:
+            self.update_subtitle_status()
+        else:
+            self.bottom_status.update(self.bottom_status_text())
 
 
 def subtitle_track_for_choice(item: MediaItem, choice: str) -> Optional[SubtitleTrack]:
@@ -2200,7 +2261,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def browser_loop(cfg: Config, client: JellyfinClient, items: list[MediaItem], themes: list[Theme]) -> int:
+def browser_loop(
+    cfg: Config,
+    client: JellyfinClient,
+    items: list[MediaItem],
+    themes: list[Theme],
+    auto_refresh_on_start: bool,
+) -> int:
     theme_index = 0
     ui_state = UIState(view=cfg.sort_mode, display_mode=cfg.display_mode, sort_desc=cfg.sort_desc)
 
@@ -2208,7 +2275,17 @@ def browser_loop(cfg: Config, client: JellyfinClient, items: list[MediaItem], th
         theme = themes[theme_index]
         BrowseApp.CSS = theme.tcss
 
-        chosen = BrowseApp(cfg, client, items, theme.name, ui_state).run()
+        app = BrowseApp(
+            cfg,
+            client,
+            items,
+            theme.name,
+            ui_state,
+            auto_refresh_on_start=auto_refresh_on_start,
+        )
+        chosen = app.run()
+        items = app.all_items_raw
+        auto_refresh_on_start = False
 
         if chosen is None:
             return 0
@@ -2217,17 +2294,6 @@ def browser_loop(cfg: Config, client: JellyfinClient, items: list[MediaItem], th
             theme_index = (theme_index + 1) % len(themes)
             persist_style_path(cfg, themes[theme_index])
             print(f"Theme: {themes[theme_index].name}", file=sys.stderr)
-            continue
-
-        if isinstance(chosen, RefreshRequest):
-            print("Refreshing Jellyfin state...", file=sys.stderr)
-            try:
-                items = client.fetch_items()
-                user_id = client.auth.user_id if client.auth is not None else ""
-                write_item_cache(default_item_cache_path(), cfg, user_id, items)
-            except JellyfinError as exc:
-                print(f"Jellyfin refresh failed: {exc}", file=sys.stderr)
-                print("Returning with old item list.", file=sys.stderr)
             continue
 
         if isinstance(chosen, PlaybackRequest):
@@ -2278,6 +2344,7 @@ def main() -> int:
 
     user_id = client.auth.user_id if client.auth is not None else ""
     items = load_item_cache(item_cache_path, cfg, user_id)
+    auto_refresh_on_start = bool(items)
 
     if items:
         print(f"Loaded {len(items)} cached items.", file=sys.stderr)
@@ -2292,7 +2359,7 @@ def main() -> int:
     if not items:
         die("No playable Jellyfin items found.")
 
-    return browser_loop(cfg, client, items, themes)
+    return browser_loop(cfg, client, items, themes, auto_refresh_on_start)
 
 
 if __name__ == "__main__":

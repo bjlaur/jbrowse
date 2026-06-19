@@ -1,5 +1,36 @@
 # CHANGELOG.md
 
+## 0.0.28 - 2026-06-19
+
+Non-blocking refresh release.
+
+Changes:
+
+- Open from the item cache first, then automatically refresh Jellyfin in the background.
+- Made `Ctrl+R` refresh Jellyfin in the background instead of blocking the UI.
+- Allowed `Ctrl+R` from info, subtitle, help, and browser screens.
+- Show refresh state in the bottom status bar.
+- Preserve the current search/list/info state when refreshed items arrive.
+- Added a screenshot POC view using a fake refresh state for the refresh bottom-bar UI.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/ui_screenshot_poc.py`.
+- Passed config/state/style path smoke checks.
+- Ran `python tools/ui_screenshot_poc.py` against the real configured Jellyfin server.
+- Confirmed cached startup opens first and startup refresh shows in the bottom status bar.
+- Confirmed `Ctrl+R` works from the info screen without blocking.
+- Confirmed refreshed items are cached and the current info screen is preserved when possible.
+- Confirmed `screenshot/refreshing.svg` uses a fake refresh state and shows `refreshing...` in the bottom bar.
+- Confirmed future mpv IPC / Jellyfin playback-reporting guard strings only appear in `AGENTS.md`.
+
+Manual release check:
+
+- Start with an existing item cache and confirm the UI appears before refresh completes.
+- Press `Ctrl+R` on the browser and confirm the bottom bar shows refresh state.
+- Open an info screen, press `Ctrl+R`, and confirm the info screen stays usable.
+- Confirm normal playback still works after a background refresh.
+
 ## 0.0.27 - 2026-06-18
 
 Configurable mpv command release.

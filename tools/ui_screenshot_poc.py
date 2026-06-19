@@ -104,11 +104,11 @@ def make_ui_state(cfg: Config, demo_item: MediaItem) -> UIState:
     )
 
 
-async def settle(app: BrowseApp, pilot, label: str) -> None:
+async def settle(app: BrowseApp, pilot, label: str, pause: float = 1.0) -> None:
     start = time.perf_counter()
     app.render_items()
     app.update_status()
-    await pilot.pause(1.0)
+    await pilot.pause(pause)
     await pilot.wait_for_scheduled_animations()
     log(f"{label}: settled in {time.perf_counter() - start:.2f}s")
 
@@ -143,7 +143,13 @@ async def capture_screenshot(
     )
 
     async with app.run_test(size=size) as pilot:
-        await settle(app, pilot, f"{filename} initial")
+        if view == "refreshing":
+            log(f"{filename}: using fake refresh state")
+            app.refreshing = True
+            app.refresh_message = "refreshing..."
+            await settle(app, pilot, f"{filename} fake refresh", pause=0.1)
+        else:
+            await settle(app, pilot, f"{filename} initial")
 
         if view == "info":
             app.open_info()
@@ -186,6 +192,7 @@ async def save_screenshots(
         ("info.svg", "info"),
         ("subtitles.svg", "subtitles"),
         ("help.svg", "help"),
+        ("refreshing.svg", "refreshing"),
     ]
 
     for index, (filename, view) in enumerate(captures):
