@@ -1491,6 +1491,12 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
+        if event.key == "ctrl+x":
+            self.save_ui_state()
+            self.exit(ThemeCycle())
+            event.stop()
+            return
+
         if self.page == "help":
             self.page = self.previous_page
             self.render_items()
@@ -1569,12 +1575,6 @@ class BrowseApp(App[object]):
 
         if event.key == "ctrl+o":
             self.toggle_sort_order()
-            event.stop()
-            return
-
-        if event.key == "ctrl+x":
-            self.save_ui_state()
-            self.exit(ThemeCycle())
             event.stop()
             return
 
