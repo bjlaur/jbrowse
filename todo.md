@@ -167,7 +167,19 @@ Keep IPC-specific work separate.
 
 ---
 
-## 3. Live mpv output/log page
+## 3. Screenshot publishing fixtures
+
+Tiny release idea:
+
+- With test harness mock up filenames and information based on real world information.
+- Need to think about this a bit: what files make sense?
+- Goal: start publishing screenshots without exposing real Jellyfin/media data.
+- Do not commit generated screenshots every run; that would be a ton of image commits.
+- Think through `.gitignore` or a similar workflow so screenshots can be generated every time, but committed only once in a blue moon, just when requested.
+
+---
+
+## 4. Live mpv output/log page
 
 Current behavior:
 
@@ -216,7 +228,7 @@ Follow-up:
 
 ---
 
-## 4. Better help text / key map cleanup
+## 5. Better help text / key map cleanup
 
 Goal: keep help readable as controls grow.
 
@@ -237,7 +249,7 @@ Current help is acceptable, but every new feature should update the help page in
 
 ---
 
-## 5. Server-side safety guard
+## 6. Server-side safety guard
 
 Goal: keep track of code paths that can mutate Jellyfin/server state before we add playback reporting or other write APIs.
 
@@ -254,7 +266,7 @@ Implementation notes:
 
 ---
 
-## 6. Future mpv command profiles
+## 7. Future mpv command profiles
 
 The app currently has one configurable `mpv_cmd` template.
 
@@ -266,7 +278,7 @@ Implementation notes:
 - Do not add mpv IPC as part of this task.
 - Do not add background playback as part of this task.
 
-## 7. Accurate Jellyfin playback reporting
+## 8. Accurate Jellyfin playback reporting
 
 Needs mpv IPC for accurate position.
 
@@ -304,7 +316,7 @@ When mpv IPC is implemented, update any stale-string / feature-guard checks for 
 
 ---
 
-## 8. Replace-current-playback prompt
+## 9. Replace-current-playback prompt
 
 If something is already playing and the user tries to play another item, ask first.
 
@@ -334,7 +346,7 @@ Jellyfin playback reporting may be cleaner if the old session is explicitly stop
 
 ---
 
-## 9. Now Playing page
+## 10. Now Playing page
 
 This should be the info page plus live playback state, not a separate tiny status page.
 
@@ -379,7 +391,7 @@ Needs:
 
 ---
 
-## 10. Pause / stop / seek controls
+## 11. Pause / stop / seek controls
 
 Possible controls:
 
@@ -397,7 +409,7 @@ Do not assume all modified keys work in every terminal. Test real key events bef
 
 ---
 
-## 11. Jellyfin playback reporting notes
+## 12. Jellyfin playback reporting notes
 
 Minimal playback reporting exists as of `0.0.30`. After mpv IPC exists, make it accurate.
 
@@ -430,7 +442,7 @@ When this is implemented, update any stale-string / feature-guard checks for Jel
 
 ---
 
-## 12. Final playback position save
+## 13. Final playback position save
 
 When mpv exits or item is replaced:
 
@@ -448,7 +460,7 @@ Goal:
 
 ---
 
-## 13. Static bitrate selection
+## 14. Static bitrate selection
 
 Possible quality options:
 
@@ -483,7 +495,7 @@ Implementation notes:
 
 ---
 
-## 14. Change bitrate while playing
+## 15. Change bitrate while playing
 
 Not truly seamless.
 
@@ -504,7 +516,7 @@ Needs:
 
 ---
 
-## 15. Audio picker
+## 16. Audio picker
 
 After subtitle picker and mpv IPC, add audio track selection.
 
@@ -528,7 +540,7 @@ Robust implementation should use mpv IPC `track-list`.
 
 ---
 
-## 16. Split the giant file
+## 17. Split the giant file
 
 Do this later, after the app stabilizes further.
 
@@ -556,7 +568,7 @@ Suggested timing:
 
 ---
 
-## 17. Build files and Arch packaging skeleton
+## 18. Build files and Arch packaging skeleton
 
 Goal: add the boring-but-useful project files that make `jbrowse` easier to install, build, and package.
 
@@ -587,7 +599,7 @@ Implementation notes:
 
 ---
 
-## 18. Stabilize name / packaging
+## 19. Stabilize name / packaging
 
 Eventually settle on:
 
