@@ -1,5 +1,37 @@
 # CHANGELOG.md
 
+## 0.0.32 - 2026-06-19
+
+Background mpv and output page release.
+
+Changes:
+
+- Launch `mpv` in the background so `jbrowse` stays open during playback.
+- Capture `mpv` command and combined stdout/stderr output in a rolling buffer.
+- Added `Ctrl+G` to show the `mpv` output during or after playback.
+- Added a simple scrollable `mpv log` overlay.
+- Show current playback in the bottom status bar.
+- Keep estimated Jellyfin playback reporting based on elapsed process runtime.
+- Trigger background refresh when background playback ends.
+- Updated help text with the new `Ctrl+G` hotkey.
+- Added an SVG harness capture for the `mpv log` page using fake output.
+- Added an opt-in fake playback smoke test with `tools/svg_screenshot_poc.py --playback-smoke`.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
+- Ran `python tools/svg_screenshot_poc.py`.
+- Ran `python tools/svg_screenshot_poc.py --playback-smoke`.
+- Confirmed `screenshot/mpv-log.svg` shows the fake command and output.
+- Confirmed the fake playback smoke starts without blocking, captures multiple delayed output lines, and exits cleanly.
+- Known gap: the `mpv log` page works, but still needs UI polish.
+
+Manual release check:
+
+- Play any item and confirm `jbrowse` remains usable while `mpv` runs.
+- Press `Ctrl+G` during or after playback and confirm the command/output page appears.
+- Confirm `q` or `backspace` closes the `mpv log` page.
+
 ## 0.0.31 - 2026-06-19
 
 Theme order and SVG screenshot harness release.

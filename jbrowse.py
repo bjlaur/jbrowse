@@ -70,7 +70,7 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.30"
+CLIENT_VERSION = "0.0.32"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
@@ -242,6 +242,13 @@ class PlaybackRequest:
     subtitle_choice: str = "auto"
 
 
+@dataclasses.dataclass(frozen=True)
+class PlaybackResult:
+    return_code: int
+    command: str
+    output: str
+
+
 @dataclasses.dataclass
 class UIState:
     view: str = ""
@@ -255,6 +262,7 @@ class UIState:
     previous_page: str = "browser"
     info_item_id: str = ""
     info_scroll: int = 0
+    mpv_log_scroll: int = 0
     subtitle_choices: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
@@ -1283,6 +1291,9 @@ class BrowseApp(App[object]):
         write_cache_on_start: bool = True,
         auto_refresh_on_start: bool = False,
         last_refresh_started_at: Optional[float] = None,
+        playback_manager: Optional["PlaybackManager"] = None,
+        last_mpv_command: str = "",
+        last_mpv_output: str = "",
     ):
         super().__init__()
         self.cfg = cfg
@@ -1304,9 +1315,14 @@ class BrowseApp(App[object]):
         self.selected_index = 0
         self.scroll_offset = ui_state.scroll_offset
         self.regex_error = ""
-        self.page = ui_state.page if ui_state.page in {"browser", "help", "info", "subtitles"} else "browser"
+        self.page = ui_state.page if ui_state.page in {"browser", "help", "info", "subtitles", "mpv_log"} else "browser"
         self.previous_page = ui_state.previous_page if ui_state.previous_page in {"browser", "info"} else "browser"
         self.info_scroll = ui_state.info_scroll
+        self.mpv_log_scroll = ui_state.mpv_log_scroll
+        self.playback_manager = playback_manager or PlaybackManager(client)
+        self.playback_was_active = self.playback_manager.is_active()
+        self.last_mpv_command = last_mpv_command
+        self.last_mpv_output = last_mpv_output
         self.info_item: Optional[MediaItem] = find_item_by_id(items, ui_state.info_item_id)
         if self.page == "info" and self.info_item is None:
             self.page = "browser"
@@ -1355,7 +1371,9 @@ class BrowseApp(App[object]):
 
         self.apply_filter(restore=True)
 
-        if self.page == "subtitles" and self.info_item is not None:
+        if self.page == "mpv_log":
+            self.render_mpv_log()
+        elif self.page == "subtitles" and self.info_item is not None:
             self.render_subtitle_picker()
         elif self.page == "info" and self.info_item is not None:
             self.render_info()
@@ -1371,6 +1389,7 @@ class BrowseApp(App[object]):
 
         self.start_periodic_refresh_check()
         self.maybe_start_periodic_refresh("startup")
+        self.start_playback_poll()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         self.note_activity()
@@ -1411,6 +1430,7 @@ class BrowseApp(App[object]):
         self.ui_state.previous_page = self.previous_page
         self.ui_state.info_item_id = self.info_item.id if self.info_item is not None else ""
         self.ui_state.info_scroll = self.info_scroll
+        self.ui_state.mpv_log_scroll = self.mpv_log_scroll
 
     def subtitle_options(self, item: MediaItem) -> list[tuple[str, str]]:
         options = [
@@ -1445,6 +1465,10 @@ class BrowseApp(App[object]):
 
         if prefix:
             parts.append(prefix)
+        playback = self.playback_manager.snapshot()
+        if playback["active"]:
+            title = playback["title"] or "mpv"
+            parts.append(f"playing: {title}")
         if self.refreshing:
             parts.append(self.refresh_message or "refreshing...")
         elif self.refresh_error:
@@ -1468,14 +1492,24 @@ class BrowseApp(App[object]):
     def play_selected(self) -> None:
         if not self.visible_items:
             return
-        self.save_ui_state()
-        self.exit(self.playback_request(self.visible_items[self.selected_index]))
+        self.start_playback(self.visible_items[self.selected_index])
 
     def play_info_item(self) -> None:
         if self.info_item is None:
             return
+        self.start_playback(self.info_item)
+
+    def start_playback(self, item: MediaItem) -> None:
         self.save_ui_state()
-        self.exit(self.playback_request(self.info_item))
+        error = self.playback_manager.start_background(item, self.subtitle_choice(item))
+        if error:
+            self.refresh_error = error
+        else:
+            self.refresh_error = ""
+            self.playback_was_active = True
+
+        self.update_bottom_status()
+        self.render_items()
 
     def on_key(self, event) -> None:
         self.note_activity()
@@ -1491,9 +1525,29 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
+        if event.key == "ctrl+g":
+            self.open_mpv_log()
+            event.stop()
+            return
+
         if event.key == "ctrl+x":
             self.save_ui_state()
             self.exit(ThemeCycle())
+            event.stop()
+            return
+
+        if self.page == "mpv_log":
+            if event.key in {"q", "escape", "backspace"} or getattr(event, "character", None) == "q":
+                self.page = self.previous_page
+                self.render_items()
+                event.stop()
+                return
+
+            if event.key in {"up", "down", "pageup", "pagedown", "home", "end"}:
+                self.scroll_mpv_log(event.key)
+                event.stop()
+                return
+
             event.stop()
             return
 
@@ -1713,6 +1767,26 @@ class BrowseApp(App[object]):
 
         self.set_timer(REFRESH_CHECK_SECONDS, self.check_periodic_refresh)
 
+    def start_playback_poll(self) -> None:
+        self.set_timer(0.5, self.poll_playback_status)
+
+    def poll_playback_status(self) -> None:
+        playback_active = self.playback_manager.is_active()
+
+        if self.playback_was_active and not playback_active:
+            self.refresh_message = "playback ended"
+            if not self.refreshing:
+                self.start_background_refresh("playback")
+
+        self.playback_was_active = playback_active
+
+        if self.page == "mpv_log":
+            self.render_mpv_log()
+        else:
+            self.update_bottom_status()
+
+        self.start_playback_poll()
+
     def check_periodic_refresh(self) -> None:
         self.maybe_start_periodic_refresh("periodic")
         self.start_periodic_refresh_check()
@@ -1733,6 +1807,8 @@ class BrowseApp(App[object]):
 
     def maybe_start_periodic_refresh(self, reason: str) -> None:
         if self.refreshing:
+            return
+        if self.playback_manager.is_active():
             return
         if not self.is_refresh_due():
             return
@@ -2135,6 +2211,89 @@ class BrowseApp(App[object]):
         self.info_scroll = max(0, min(self.info_scroll, max_scroll))
         self.render_info()
 
+    def open_mpv_log(self) -> None:
+        if self.page in {"browser", "info"}:
+            self.previous_page = self.page
+
+        self.page = "mpv_log"
+        self.mpv_log_scroll = 0
+        self.render_mpv_log()
+
+    def mpv_log_lines(self) -> list[str]:
+        playback = self.playback_manager.snapshot()
+        command = playback["command"] or self.last_mpv_command
+        output = playback["output"] or self.last_mpv_output
+
+        if not command:
+            return [
+                "No mpv command has been captured yet.",
+                "",
+                "Play something, then press Ctrl+G after mpv closes.",
+            ]
+
+        lines = [
+            "Command",
+            "-------",
+            command,
+            "",
+            "Output",
+            "------",
+        ]
+
+        if output.strip():
+            lines.extend(output.splitlines())
+        else:
+            lines.append("(no output captured)")
+
+        return lines
+
+    def render_mpv_log(self) -> None:
+        self.focus_overlay()
+        lines = self.mpv_log_lines()
+        height = max(8, self.viewport_height() - 4)
+        max_scroll = max(0, len(lines) - height)
+        self.mpv_log_scroll = max(0, min(self.mpv_log_scroll, max_scroll))
+        shown = lines[self.mpv_log_scroll : self.mpv_log_scroll + height]
+
+        text = Text()
+        text.append("q/backspace close | ↑/↓ scroll | PageUp/PageDown | Home/End", style="dim")
+        text.append("\n\n")
+
+        for line_number, line in enumerate(shown):
+            if line_number:
+                text.append("\n")
+
+            absolute_line = self.mpv_log_scroll + line_number
+            if absolute_line in {0, 4} and line in {"Command", "Output"}:
+                text.append(line, style="bold")
+            elif line and set(line) == {"-"}:
+                text.append(line, style="dim")
+            else:
+                text.append(line)
+
+        self.listbox.update(self.overlay_panel(text, "mpv log"))
+
+    def scroll_mpv_log(self, key: str) -> None:
+        lines = self.mpv_log_lines()
+        height = max(8, self.viewport_height() - 4)
+        max_scroll = max(0, len(lines) - height)
+
+        if key == "up":
+            self.mpv_log_scroll -= 1
+        elif key == "down":
+            self.mpv_log_scroll += 1
+        elif key == "pageup":
+            self.mpv_log_scroll -= height
+        elif key == "pagedown":
+            self.mpv_log_scroll += height
+        elif key == "home":
+            self.mpv_log_scroll = 0
+        elif key == "end":
+            self.mpv_log_scroll = max_scroll
+
+        self.mpv_log_scroll = max(0, min(self.mpv_log_scroll, max_scroll))
+        self.render_mpv_log()
+
     def render_help(self) -> None:
         self.focus_overlay()
         help_text = Text()
@@ -2154,6 +2313,7 @@ class BrowseApp(App[object]):
         help_text.append("Ctrl+O       toggle ascending/descending sort\n")
         help_text.append("Info: q/backspace close, Enter play, s subtitles, ←/→ episode, [/] season\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
+        help_text.append("Ctrl+G       show last mpv output\n")
         help_text.append("Ctrl+X       cycle theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
         help_text.append("F1 or ?      show this help too\n")
@@ -2165,6 +2325,10 @@ class BrowseApp(App[object]):
     def render_items(self) -> None:
         if self.page == "help":
             self.render_help()
+            return
+
+        if self.page == "mpv_log":
+            self.render_mpv_log()
             return
 
         if self.page == "info":
@@ -2319,6 +2483,11 @@ class PlaybackManager:
         self.started_at = 0.0
         self.item: Optional[MediaItem] = None
         self.play_session_id = ""
+        self.process: Optional[subprocess.Popen] = None
+        self.output_lines: list[str] = []
+        self.last_command = ""
+        self.last_return_code: Optional[int] = None
+        self.lock = threading.Lock()
 
     def position_ticks(self) -> int:
         if self.item is None or self.started_at <= 0:
@@ -2347,9 +2516,118 @@ class PlaybackManager:
         except JellyfinError as exc:
             print(f"Jellyfin playback {label} report failed: {exc}", file=sys.stderr)
 
-    def run(self, item: MediaItem, subtitle_choice: str = "auto") -> int:
+    def is_active(self) -> bool:
+        with self.lock:
+            return self.process is not None and self.process.poll() is None
+
+    def snapshot(self) -> dict[str, Any]:
+        with self.lock:
+            active = self.process is not None and self.process.poll() is None
+            title = self.item.filename if self.item is not None else ""
+            return {
+                "active": active,
+                "title": title,
+                "command": self.last_command,
+                "output": "".join(self.output_lines),
+                "return_code": self.last_return_code,
+            }
+
+    def append_output(self, text: str) -> None:
+        if not text:
+            return
+
+        with self.lock:
+            self.output_lines.append(text)
+            if len(self.output_lines) > 2000:
+                del self.output_lines[: len(self.output_lines) - 2000]
+
+    def start_background(self, item: MediaItem, subtitle_choice: str = "auto") -> str:
+        with self.lock:
+            if self.process is not None and self.process.poll() is None:
+                return "mpv is already running"
+
         url = self.client.stream_url(item)
         args, subtitle_track = build_mpv_command(self.client.cfg, item, url, subtitle_choice)
+        command = debug_mpv_command(args)
+
+        if subtitle_choice == "none":
+            subtitle_line = "Subtitles: none\n"
+        elif subtitle_track is not None:
+            subtitle_line = f"Subtitles: {subtitle_track.title}\n"
+        else:
+            subtitle_line = ""
+
+        try:
+            process = subprocess.Popen(
+                args,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                errors="replace",
+            )
+        except FileNotFoundError:
+            return f"could not find mpv executable: {args[0]}"
+
+        with self.lock:
+            self.process = process
+            self.item = item
+            self.started_at = time.monotonic()
+            self.play_session_id = secrets.token_hex(16)
+            self.output_lines = [
+                f"Now Playing: {item.filename}\n",
+                subtitle_line,
+                f"DEBUG mpv command: {command}\n",
+            ]
+            self.last_command = command
+            self.last_return_code = None
+
+        self.report("start", self.client.report_playback_started, item, item.resume_ticks)
+
+        reader = threading.Thread(
+            target=self.read_output_worker,
+            name="jbrowse-mpv-output",
+            daemon=True,
+            args=(process,),
+        )
+        waiter = threading.Thread(
+            target=self.wait_for_background_playback,
+            name="jbrowse-mpv-wait",
+            daemon=True,
+            args=(process, item),
+        )
+        reader.start()
+        waiter.start()
+        return ""
+
+    def read_output_worker(self, process: subprocess.Popen) -> None:
+        if process.stdout is None:
+            return
+
+        try:
+            for line in process.stdout:
+                self.append_output(line)
+        except ValueError:
+            return
+
+    def wait_for_background_playback(self, process: subprocess.Popen, item: MediaItem) -> None:
+        return_code = process.wait()
+        final_position = self.position_ticks()
+        self.report("progress", self.client.report_playback_progress, item, final_position)
+        self.report("stopped", self.client.report_playback_stopped, item, final_position)
+
+        with self.lock:
+            if self.process is process:
+                self.last_return_code = return_code
+                self.process = None
+                self.item = None
+                self.started_at = 0.0
+                self.play_session_id = ""
+
+    def run(self, item: MediaItem, subtitle_choice: str = "auto") -> PlaybackResult:
+        url = self.client.stream_url(item)
+        args, subtitle_track = build_mpv_command(self.client.cfg, item, url, subtitle_choice)
+        command = debug_mpv_command(args)
 
         print(f"Now Playing: \033[1;32m{item.filename}\033[0m")
         if subtitle_choice == "none":
@@ -2357,29 +2635,39 @@ class PlaybackManager:
         elif subtitle_track is not None:
             print(f"Subtitles: {subtitle_track.title}")
 
-        print(f"DEBUG mpv command: {debug_mpv_command(args)}", file=sys.stderr)
+        print(f"DEBUG mpv command: {command}", file=sys.stderr)
 
         try:
-            process = subprocess.Popen(args)
+            process = subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                errors="replace",
+            )
         except FileNotFoundError:
             die(f"Could not find mpv executable: {args[0]}")
-            return 1
+            return PlaybackResult(1, command, "")
 
         self.item = item
         self.started_at = time.monotonic()
         self.play_session_id = secrets.token_hex(16)
         self.report("start", self.client.report_playback_started, item, item.resume_ticks)
 
+        output = ""
         try:
-            return_code = process.wait()
+            output, _unused = process.communicate()
+            return_code = process.returncode or 0
         except KeyboardInterrupt:
             if process.poll() is None:
                 process.terminate()
                 try:
-                    return_code = process.wait(timeout=5)
+                    output, _unused = process.communicate(timeout=5)
+                    return_code = process.returncode or 130
                 except subprocess.TimeoutExpired:
                     process.kill()
-                    return_code = process.wait()
+                    output, _unused = process.communicate()
+                    return_code = process.returncode or 130
             else:
                 return_code = process.returncode or 130
         finally:
@@ -2390,10 +2678,10 @@ class PlaybackManager:
             self.started_at = 0.0
             self.play_session_id = ""
 
-        return return_code
+        return PlaybackResult(return_code, command, output or "")
 
 
-def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> int:
+def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> PlaybackResult:
     return PlaybackManager(client).run(item, subtitle_choice)
 
 
@@ -2418,6 +2706,9 @@ def browser_loop(
 ) -> int:
     theme_index = 0
     ui_state = UIState(view=cfg.sort_mode, display_mode=cfg.display_mode, sort_desc=cfg.sort_desc)
+    playback_manager = PlaybackManager(client)
+    last_mpv_command = ""
+    last_mpv_output = ""
 
     while True:
         theme = themes[theme_index]
@@ -2431,6 +2722,9 @@ def browser_loop(
             ui_state,
             auto_refresh_on_start=auto_refresh_on_start,
             last_refresh_started_at=last_refresh_started_at,
+            playback_manager=playback_manager,
+            last_mpv_command=last_mpv_command,
+            last_mpv_output=last_mpv_output,
         )
         chosen = app.run()
         items = app.all_items_raw
@@ -2447,7 +2741,9 @@ def browser_loop(
             continue
 
         if isinstance(chosen, PlaybackRequest):
-            play_item(client, chosen.item, chosen.subtitle_choice)
+            result = play_item(client, chosen.item, chosen.subtitle_choice)
+            last_mpv_command = result.command
+            last_mpv_output = result.output
             auto_refresh_on_start = True
 
 

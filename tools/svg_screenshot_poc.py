@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import dataclasses
+import html
 import json
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +20,7 @@ from jbrowse import (  # noqa: E402
     BrowseApp,
     JellyfinClient,
     MediaItem,
+    PlaybackManager,
     Theme,
     ThemeCycle,
     UIState,
@@ -44,6 +48,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Tiny Textual SVG screenshot POC")
     parser.add_argument("--output", default="screenshot", help="output directory")
     parser.add_argument("--size", default="120x36", type=parse_size, help="terminal size")
+    parser.add_argument(
+        "--playback-smoke",
+        action="store_true",
+        help="also run a fake 3-second foreground playback capture smoke test",
+    )
     return parser.parse_args()
 
 
@@ -75,7 +84,8 @@ def make_state(cfg, item: MediaItem) -> UIState:
 
 
 def check_svg(name: str, svg: str, expected: list[str]) -> None:
-    missing = [text for text in expected if text not in svg]
+    normalized = html.unescape(svg).replace("\u00a0", " ")
+    missing = [text for text in expected if text not in normalized]
     if missing:
         raise RuntimeError(f"{name} missing expected text: {', '.join(missing)}")
 
@@ -107,6 +117,8 @@ async def export_view(
         make_state(cfg, demo_item),
         write_cache_on_start=False,
         auto_refresh_on_start=False,
+        last_mpv_command="mpv --fake-demo",
+        last_mpv_output="line one\nline two",
     )
 
     async with app.run_test(size=size) as pilot:
@@ -128,6 +140,9 @@ async def export_view(
         elif view == "help":
             await pilot.press("f1")
             await settle(app, pilot)
+        elif view == "mpv-log":
+            app.open_mpv_log()
+            await settle(app, pilot)
         elif view == "refreshing":
             app.refreshing = True
             app.refresh_message = "refreshing..."
@@ -135,11 +150,99 @@ async def export_view(
             await settle(app, pilot)
 
         svg = app.export_screenshot(title=f"{output_path.name} - {theme.name}")
-        check_svg(output_path.name, svg, [theme.name, *expected])
         output_path.write_text(svg, encoding="utf-8")
+        check_svg(output_path.name, svg, [theme.name, *expected])
         log(f"wrote {output_path} with {theme.name}")
 
     return app.return_value
+
+
+class FakePlaybackClient:
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def stream_url(self, item: MediaItem) -> str:
+        return f"https://example.invalid/Items/{item.id}/stream?api_key=secret"
+
+    def report_playback_started(self, payload: dict) -> None:
+        pass
+
+    def report_playback_progress(self, payload: dict) -> None:
+        pass
+
+    def report_playback_stopped(self, payload: dict) -> None:
+        pass
+
+
+def fake_playback_item() -> MediaItem:
+    return MediaItem(
+        id="fake-playback",
+        title="Fake Playback",
+        filename="fake-playback.mkv",
+        kind="Movie",
+        series_name="",
+        season_number=None,
+        episode_number=None,
+        premiere_date="",
+        date_created="",
+        last_played="",
+        resume_ticks=0,
+        info_lines=["Fake Playback"],
+        subtitle_tracks=[],
+    )
+
+
+def run_playback_smoke(cfg) -> dict:
+    log("running fake playback smoke; this intentionally emits output for 3 seconds")
+    fake_cfg = dataclasses.replace(
+        cfg,
+        mpv_cmd=[
+            sys.executable,
+            "-c",
+            (
+                "import datetime, sys, time; "
+                "print('fake mpv start'); "
+                "sys.stdout.flush(); "
+                "\nfor tick in range(1, 7):\n"
+                "    time.sleep(0.5)\n"
+                "    print(f'fake mpv tick {tick} {datetime.datetime.now().isoformat(timespec=\"seconds\")}')\n"
+                "    sys.stdout.flush()\n"
+                "print('fake mpv end')"
+            ),
+            "$url",
+        ],
+    )
+    manager = PlaybackManager(FakePlaybackClient(fake_cfg))
+    started_at = time.monotonic()
+    error = manager.start_background(fake_playback_item())
+    launch_elapsed = time.monotonic() - started_at
+    if error:
+        raise RuntimeError(error)
+    if launch_elapsed > 1:
+        raise RuntimeError(f"fake playback launch blocked for {launch_elapsed:.2f}s")
+    if not manager.is_active():
+        raise RuntimeError("fake playback did not start in the background")
+
+    deadline = time.monotonic() + 10
+    while manager.is_active() and time.monotonic() < deadline:
+        time.sleep(0.1)
+
+    if manager.is_active():
+        raise RuntimeError("fake playback did not finish")
+
+    result = manager.snapshot()
+    if result["return_code"] != 0:
+        raise RuntimeError(f"fake playback returned {result['return_code']}")
+    if (
+        "fake mpv start" not in result["output"]
+        or "fake mpv tick 6" not in result["output"]
+        or "fake mpv end" not in result["output"]
+    ):
+        raise RuntimeError("fake playback output was not captured")
+    if "api_key=REDACTED" not in result["command"]:
+        raise RuntimeError("fake playback command was not redacted")
+    log("fake playback smoke captured command/output")
+    return result
 
 
 async def main_async(args: argparse.Namespace) -> int:
@@ -200,7 +303,8 @@ async def main_async(args: argparse.Namespace) -> int:
     captures = [
         ("info.svg", "info", ["Info", "Enter", "subtitles"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
-        ("help.svg", "help", ["Help", "Ctrl+X"]),
+        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+X"]),
+        ("mpv-log.svg", "mpv-log", ["mpv log", "mpv --fake-demo", "line one"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
     ]
     for index, (filename, view, expected) in enumerate(captures, start=2):
@@ -214,6 +318,9 @@ async def main_async(args: argparse.Namespace) -> int:
             view,
             expected,
         )
+
+    if args.playback_smoke:
+        run_playback_smoke(cfg)
 
     return 0
 

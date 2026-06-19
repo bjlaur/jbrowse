@@ -30,9 +30,10 @@ Current features:
 - Info page with Jellyfin-style media details.
 - Episode navigation from info page.
 - Subtitle picker from the info page.
-- `mpv` playback.
+- Background `mpv` playback while `jbrowse` stays open.
 - Minimal Jellyfin playback reporting for recently played state.
 - Configurable `mpv_cmd` playback template.
+- `mpv` command/output viewer with `Ctrl+G`.
 - Resume start position from Jellyfin user data.
 - Sort modes:
   - recently added
@@ -53,7 +54,6 @@ Current features:
 Not implemented yet:
 
 - mpv IPC.
-- Background mpv while keeping the UI open.
 - Now Playing page.
 - Accurate mpv IPC-backed Jellyfin playback progress reporting.
 - Static bitrate/transcoding selection.
@@ -232,6 +232,7 @@ Typing       from list: return to search and keep typed char
 Esc          clear search
 /pattern     regex search
 Ctrl+R       refresh Jellyfin list in the background
+Ctrl+G       show last mpv output
 Ctrl+X       cycle theme and save it to jbrowse.conf
 Ctrl+L       show help
 F1 or ?      show help
@@ -361,9 +362,9 @@ Commit named themes under `themes/` instead.
 
 The list renderer intentionally uses one `Static` widget instead of Textual `ListView`/`ListItem`. This is for speed with large libraries.
 
-The current playback model is foreground `mpv`; when `mpv` exits, the UI returns.
+The current playback model starts `mpv` in the background while `jbrowse` stays open. Output is captured for the `Ctrl+G` log page.
 
-Future work should add a real `PlaybackManager` with mpv IPC instead of bolting player logic onto UI methods.
+Future work should add mpv IPC to the existing `PlaybackManager` for accurate progress, pause/seek controls, and track switching.
 
 Experimental real-server UI screenshots:
 
@@ -372,3 +373,11 @@ python tools/svg_screenshot_poc.py
 ```
 
 This writes local SVG screenshots under `screenshot/`. The output can contain private media names and is ignored by git.
+
+Optional fake playback capture smoke test:
+
+```bash
+python tools/svg_screenshot_poc.py --playback-smoke
+```
+
+This uses a no-video fake player command that prints output every 0.5 seconds for about 3 seconds, then verifies the captured command/output path.

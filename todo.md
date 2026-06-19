@@ -2,7 +2,7 @@
 
 
 
-## jbrowse TODO list, post-0.0.31
+## jbrowse TODO list, post-0.0.32
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
@@ -23,9 +23,11 @@ The current baseline already has:
 - automatic background refresh after cached startup
 - periodic background refresh while recently active
 - minimal Jellyfin playback reporting
+- background mpv while jbrowse stays open
 - background refresh after playback returns
 - numbered theme cycle order
 - SVG screenshot harness with basic content checks
+- mpv command/output viewer
 - documented current server-side mutation boundary
 - current config/example/gitignore/docs
 
@@ -66,6 +68,8 @@ Shift+Enter  direct playback
 - [x] ~~PlaybackManager with minimal Jellyfin playback reporting.~~ Released in `0.0.30`.
 - [x] ~~Background refresh after playback returns.~~ Released in `0.0.30`.
 - [x] ~~Numbered theme cycle order and SVG screenshot harness checks.~~ Released in `0.0.31`.
+- [x] ~~Background mpv while jbrowse stays open.~~ Released in `0.0.32`.
+- [x] ~~mpv output page.~~ Released in `0.0.32`.
 
 ---
 
@@ -114,15 +118,9 @@ This unlocks:
 
 ---
 
-## 2. Background mpv
+## 2. Background mpv follow-ups
 
 Current behavior:
-
-```text
-jbrowse waits while mpv runs
-```
-
-Future behavior:
 
 ```text
 jbrowse stays open
@@ -131,31 +129,29 @@ jbrowse captures mpv output
 UI remains usable
 ```
 
-Implementation idea:
+Follow-up ideas:
 
-```python
-subprocess.Popen(
-    args,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT,
-    stdin=subprocess.DEVNULL,
-    text=True,
-    bufsize=1,
-)
+```text
+stop active mpv from jbrowse
+handle app quit while playback is active
+switch/focus mpv output view
 ```
 
-This belongs inside `PlaybackManager`.
-
-Do this before Now Playing, mpv log page, or live Jellyfin progress reporting.
+Keep IPC-specific work separate.
 
 ---
 
-## 3. mpv output/log page
+## 3. Live mpv output/log page
+
+Current behavior:
+
+```text
+Ctrl+G shows a live rolling mpv output buffer while playback is active
+```
 
 Hotkey idea:
 
 ```text
-Ctrl+G = mpv output/log page
 Shift+Tab = maybe switch/focus mpv output once IPC/background playback exists
 ```
 
@@ -187,6 +183,10 @@ q/backspace  close
 PageUp/PageDown
 Home/End
 ```
+
+Follow-up:
+
+- Improve the `mpv log` page presentation; current version is useful but rough.
 
 ---
 
