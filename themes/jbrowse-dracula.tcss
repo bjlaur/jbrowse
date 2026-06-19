@@ -1,13 +1,13 @@
 Screen {
     layout: vertical;
-    background: #02050a;
-    color: #ffe45c;
+    background: #282a36;
+    color: #d8def2;
 }
 
 #top_status {
     height: 1;
-    background: #071224;
-    color: #ffd400;
+    background: #21222c;
+    color: #f8f8f2;
     padding: 0 1;
 }
 
@@ -16,24 +16,23 @@ Screen {
     border: none;
     padding: 0 1;
     margin: 0;
-    background: #0a1f3d;
-    color: #fff2a8;
+    background: #44475a;
+    color: #f8f8f2;
 }
 
 #query:focus {
-    background: #123a70;
+    background: #5b6078;
 }
 
 #items {
     height: 1fr;
-    background: #02050a;
-    color: #ffe45c;
+    background: #282a36;
     padding: 0 1;
 }
 
 #bottom_status {
     height: 1;
-    background: #02050a;
-    color: #3d75c2;
+    background: #282a36;
+    color: #7b91c9;
     padding: 0 1;
 }
