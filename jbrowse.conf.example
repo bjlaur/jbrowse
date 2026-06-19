@@ -33,7 +33,7 @@ display_mode = title
 
 [style]
 # Optional. Relative paths are relative to this jbrowse.conf file.
-# path = themes/jbrowse-batman-low-contrast.tcss
+# path = themes/03-jbrowse-batman-low-contrast.tcss
 
 [mpv]
 # Optional. Commands are parsed with shell-like quoting.

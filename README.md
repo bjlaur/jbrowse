@@ -119,7 +119,7 @@ max_display_items = 300
 display_mode = title
 
 [style]
-# path = themes/jbrowse-batman-low-contrast.tcss
+# path = themes/03-jbrowse-batman-low-contrast.tcss
 
 [mpv]
 # mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
@@ -322,18 +322,18 @@ Or in config:
 
 ```ini
 [style]
-path = themes/jbrowse-batman-high-contrast.tcss
+path = themes/02-jbrowse-batman-high-contrast.tcss
 ```
 
-Relative style paths are resolved relative to `jbrowse.conf`. For convenience, old root-relative theme names such as `jbrowse-batman-high-contrast.tcss` also resolve from `themes/` if the root file does not exist.
+Relative style paths are resolved relative to `jbrowse.conf`.
 
 `Ctrl+X` cycles discovered `.tcss` files from `themes/`, the script directory, and `~/.config/jbrowse`, then saves the selected one.
 
 The Batman themes are:
 
 ```text
-themes/jbrowse-batman-low-contrast.tcss
-themes/jbrowse-batman-high-contrast.tcss
+themes/02-jbrowse-batman-high-contrast.tcss
+themes/03-jbrowse-batman-low-contrast.tcss
 ```
 
 Place them next to the script or under:
@@ -368,8 +368,7 @@ Future work should add a real `PlaybackManager` with mpv IPC instead of bolting 
 Experimental real-server UI screenshots:
 
 ```bash
-python tools/ui_screenshot_poc.py
+python tools/svg_screenshot_poc.py
 ```
 
 This writes local SVG screenshots under `screenshot/`. The output can contain private media names and is ignored by git.
-The POC cycles discovered themes in memory for variety, but does not save the theme choice to `jbrowse.conf`.

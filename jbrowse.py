@@ -445,7 +445,7 @@ def missing_cfg_message(path: Path) -> str:
         "display_mode = title\n\n"
         "[style]\n"
         "# Optional. Relative paths are relative to jbrowse.conf.\n"
-        "# path = themes/jbrowse-batman-low-contrast.tcss\n"
+        "# path = themes/03-jbrowse-batman-low-contrast.tcss\n"
         "\n[cache]\n"
         "# 0 disables periodic refresh.\n"
         "refresh_interval_minutes = 10\n"
