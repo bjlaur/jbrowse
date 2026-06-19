@@ -144,8 +144,17 @@ Suggested `0.0.33` scope:
 - Add a simple hotkey to stop active mpv from `jbrowse`.
 - Make quitting while mpv is active deliberate.
 - Lightly polish the `Ctrl+G` mpv output page.
+- Discuss whether to add an undocumented local config version guard before future `jbrowse.conf` writes.
 - Update the screenshot harness if the log page visual changes.
 - Test with compile, SVG harness, and fake playback smoke.
+
+Config guard idea to discuss before implementing:
+
+- Add a private/undocumented config version marker to real `jbrowse.conf`; do not put it in `jbrowse.conf.example`.
+- Update that marker during releases when local config changes are expected.
+- Before `jbrowse` writes config, compare the running app's expected marker with the file's current marker.
+- Refuse or warn if an older still-running `jbrowse` instance might overwrite newer config changes.
+- Keep this very small if it happens; the idea may be unnecessary or replaced by a better stale-write guard.
 
 Keep IPC-specific work separate.
 
