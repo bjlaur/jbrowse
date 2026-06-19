@@ -51,11 +51,10 @@ Avoid accidentally adding these before their planned feature work:
 
 ```text
 input-ipc-server
-/Sessions/Playing
 [player]
 ```
 
-These strings may become valid later for mpv IPC, Jellyfin playback reporting, or player config.
+These strings may become valid later for mpv IPC or player config.
 
 ## Release Notes And Roadmap Hygiene
 
@@ -65,8 +64,8 @@ These strings may become valid later for mpv IPC, Jellyfin playback reporting, o
 
 ## Near-Term Roadmap
 
-1. Stabilize the promoted 0.0.29 baseline.
-2. Introduce a `PlaybackManager` before adding background mpv, mpv IPC, Now Playing, or Jellyfin progress reporting.
+1. Stabilize the promoted 0.0.30 baseline.
+2. Add mpv IPC before making playback reporting more accurate.
 3. Keep build/packaging polish lower priority unless explicitly requested.
 
 Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.

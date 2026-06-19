@@ -70,7 +70,7 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.29"
+CLIENT_VERSION = "0.0.30"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
@@ -684,6 +684,30 @@ class JellyfinClient:
             f"&api_key={self.auth.token}"
             f"&DeviceId={self.state.deviceid}"
         )
+
+    def post_playback_report(self, endpoint: str, payload: dict[str, Any]) -> None:
+        if self.auth is None:
+            raise JellyfinError("not logged in")
+
+        try:
+            response = self.session.post(
+                f"{self.cfg.jellyfin_url}{endpoint}",
+                headers={**self.headers(), "Content-Type": "application/json"},
+                json=payload,
+                timeout=10,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise JellyfinError(f"playback report failed: {exc}") from exc
+
+    def report_playback_started(self, payload: dict[str, Any]) -> None:
+        self.post_playback_report("/Sessions/Playing", payload)
+
+    def report_playback_progress(self, payload: dict[str, Any]) -> None:
+        self.post_playback_report("/Sessions/Playing/Progress", payload)
+
+    def report_playback_stopped(self, payload: dict[str, Any]) -> None:
+        self.post_playback_report("/Sessions/Playing/Stopped", payload)
 
 
 def optional_int(value: Any) -> Optional[int]:
@@ -2289,35 +2313,88 @@ def build_mpv_command(
     return (args, subtitle_track)
 
 
+class PlaybackManager:
+    def __init__(self, client: JellyfinClient):
+        self.client = client
+        self.started_at = 0.0
+        self.item: Optional[MediaItem] = None
+        self.play_session_id = ""
+
+    def position_ticks(self) -> int:
+        if self.item is None or self.started_at <= 0:
+            return 0
+
+        elapsed = max(0.0, time.monotonic() - self.started_at)
+        return self.item.resume_ticks + int(elapsed * TICKS_PER_SECOND)
+
+    def playback_payload(self, item: MediaItem, position_ticks: int) -> dict[str, Any]:
+        return {
+            "ItemId": item.id,
+            "MediaSourceId": item.id,
+            "PlaySessionId": self.play_session_id,
+            "PositionTicks": max(0, position_ticks),
+            "IsPaused": False,
+            "IsMuted": False,
+            "CanSeek": True,
+            "PlayMethod": "DirectStream",
+            "RepeatMode": "RepeatNone",
+            "PlaybackRate": 1,
+        }
+
+    def report(self, label: str, reporter, item: MediaItem, position_ticks: int) -> None:
+        try:
+            reporter(self.playback_payload(item, position_ticks))
+        except JellyfinError as exc:
+            print(f"Jellyfin playback {label} report failed: {exc}", file=sys.stderr)
+
+    def run(self, item: MediaItem, subtitle_choice: str = "auto") -> int:
+        url = self.client.stream_url(item)
+        args, subtitle_track = build_mpv_command(self.client.cfg, item, url, subtitle_choice)
+
+        print(f"Now Playing: \033[1;32m{item.filename}\033[0m")
+        if subtitle_choice == "none":
+            print("Subtitles: none")
+        elif subtitle_track is not None:
+            print(f"Subtitles: {subtitle_track.title}")
+
+        print(f"DEBUG mpv command: {debug_mpv_command(args)}", file=sys.stderr)
+
+        try:
+            process = subprocess.Popen(args)
+        except FileNotFoundError:
+            die(f"Could not find mpv executable: {args[0]}")
+            return 1
+
+        self.item = item
+        self.started_at = time.monotonic()
+        self.play_session_id = secrets.token_hex(16)
+        self.report("start", self.client.report_playback_started, item, item.resume_ticks)
+
+        try:
+            return_code = process.wait()
+        except KeyboardInterrupt:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    return_code = process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    return_code = process.wait()
+            else:
+                return_code = process.returncode or 130
+        finally:
+            final_position = self.position_ticks()
+            self.report("progress", self.client.report_playback_progress, item, final_position)
+            self.report("stopped", self.client.report_playback_stopped, item, final_position)
+            self.item = None
+            self.started_at = 0.0
+            self.play_session_id = ""
+
+        return return_code
+
+
 def play_item(client: JellyfinClient, item: MediaItem, subtitle_choice: str = "auto") -> int:
-    url = client.stream_url(item)
-    args, subtitle_track = build_mpv_command(client.cfg, item, url, subtitle_choice)
-
-    print(f"Now Playing: \033[1;32m{item.filename}\033[0m")
-    if subtitle_choice == "none":
-        print("Subtitles: none")
-    elif subtitle_track is not None:
-        print(f"Subtitles: {subtitle_track.title}")
-
-    print(f"DEBUG mpv command: {debug_mpv_command(args)}", file=sys.stderr)
-
-    try:
-        process = subprocess.Popen(args)
-    except FileNotFoundError:
-        die(f"Could not find mpv executable: {args[0]}")
-        return 1
-
-    try:
-        return process.wait()
-    except KeyboardInterrupt:
-        if process.poll() is None:
-            process.terminate()
-            try:
-                return process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                return process.wait()
-        return process.returncode or 130
+    return PlaybackManager(client).run(item, subtitle_choice)
 
 
 def parse_args() -> argparse.Namespace:
@@ -2371,6 +2448,7 @@ def browser_loop(
 
         if isinstance(chosen, PlaybackRequest):
             play_item(client, chosen.item, chosen.subtitle_choice)
+            auto_refresh_on_start = True
 
 
 def main() -> int:

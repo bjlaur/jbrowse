@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.29
+0.0.30
 ```
 
 Current main script:
@@ -31,6 +31,7 @@ Current features:
 - Episode navigation from info page.
 - Subtitle picker from the info page.
 - `mpv` playback.
+- Minimal Jellyfin playback reporting for recently played state.
 - Configurable `mpv_cmd` playback template.
 - Resume start position from Jellyfin user data.
 - Sort modes:
@@ -45,6 +46,7 @@ Current features:
 - Background Jellyfin refresh after cached startup.
 - Non-blocking manual refresh with `Ctrl+R`.
 - Periodic background refresh while recently active.
+- Background refresh after playback returns.
 - Example config and gitignore.
 - Theme files under `themes/`, including Batman low/high contrast themes.
 
@@ -53,7 +55,7 @@ Not implemented yet:
 - mpv IPC.
 - Background mpv while keeping the UI open.
 - Now Playing page.
-- Jellyfin playback progress reporting.
+- Accurate mpv IPC-backed Jellyfin playback progress reporting.
 - Static bitrate/transcoding selection.
 
 ## Requirements
@@ -210,7 +212,7 @@ $start     --start=SECONDS, omitted when there is no resume position
 
 ## Server writes
 
-Current `jbrowse` server calls are expected to be read/playback-only: login, item fetching, screenshot harvesting, and stream URL construction. Future features that write Jellyfin state, such as watched-state changes or playback progress reporting, should be documented and gated intentionally when they are added.
+Current `jbrowse` server calls include login, item fetching, screenshot harvesting, stream URL construction, and minimal Jellyfin playback session reporting. After playback returns, `jbrowse` refreshes in the background so local sort/cache data can pick up changed Jellyfin playback metadata. Future features that write additional Jellyfin state, such as manual watched-state changes, metadata edits, deletes, favorites, or played/unplayed toggles, should be documented and gated intentionally when they are added.
 
 ## Controls
 

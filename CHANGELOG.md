@@ -1,5 +1,37 @@
 # CHANGELOG.md
 
+## 0.0.30 - 2026-06-19
+
+Minimal playback reporting release.
+
+Changes:
+
+- Added a small `PlaybackManager` around foreground `mpv` playback.
+- Added Jellyfin playback start/progress/stopped reports using `/Sessions/Playing` endpoints.
+- Kept `mpv` foreground behavior unchanged.
+- Estimate playback position from wall-clock time plus Jellyfin resume position, with accurate resume reporting left for mpv IPC.
+- Made playback reporting nonfatal so local playback still works if Jellyfin reporting fails.
+- Trigger a background refresh after playback returns so local cache/sort state can pick up playback metadata changes.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/ui_screenshot_poc.py`.
+- Passed config/state/style path smoke checks.
+- Confirmed `PlaybackManager` sends start/progress/stopped reports with estimated position.
+- Confirmed playback command construction still preserves subtitle and resume args.
+- Confirmed returning from playback schedules a background refresh.
+- Ran a real Jellyfin playback-reporting smoke test with a no-video command and confirmed `LastPlayedDate` updated.
+- Ran a real 5-second `mpv` smoke test and confirmed Jellyfin `LastPlayedDate` updated and `PlayCount` incremented.
+- Ran `python tools/ui_screenshot_poc.py` against the real configured Jellyfin server.
+- Confirmed future mpv IPC / player config guard strings only appear in `AGENTS.md`.
+
+Manual release check:
+
+- Play an item and confirm Jellyfin recently played state updates.
+- Confirm the app refreshes after playback returns so local last-played sorting updates.
+- Confirm normal playback still works if Jellyfin playback reporting fails.
+- Confirm subtitle choices still reach `mpv`.
+
 ## 0.0.29 - 2026-06-19
 
 Periodic refresh release.
