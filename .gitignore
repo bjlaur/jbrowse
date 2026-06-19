@@ -17,6 +17,9 @@ jbrowse.items.json.tmp
 # Local style override. Commit named theme files under themes/ instead.
 jbrowse.tcss
 
+# Local screenshot harvests: can contain private media names.
+screenshot/
+
 # Python local build/cache noise.
 __pycache__/
 *.py[cod]

@@ -1203,13 +1203,23 @@ class ItemPane(Static, can_focus=True):
 class BrowseApp(App[object]):
     CSS = ""
 
-    def __init__(self, cfg: Config, client: JellyfinClient, items: list[MediaItem], theme_name: str, ui_state: UIState):
+    def __init__(
+        self,
+        cfg: Config,
+        client: JellyfinClient,
+        items: list[MediaItem],
+        theme_name: str,
+        ui_state: UIState,
+        write_cache_on_start: bool = True,
+    ):
         super().__init__()
         self.cfg = cfg
         self.client = client
         self.ui_state = ui_state
-        user_id = self.client.auth.user_id if self.client.auth is not None else ""
-        write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
+
+        if write_cache_on_start:
+            user_id = self.client.auth.user_id if self.client.auth is not None else ""
+            write_item_cache(default_item_cache_path(), self.cfg, user_id, items)
 
         self.all_items_raw = items
         self.views = sorted_views(items)

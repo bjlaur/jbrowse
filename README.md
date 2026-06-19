@@ -301,6 +301,7 @@ jbrowse.state
 jbrowse.items.json
 jbrowse.items.json.tmp
 jbrowse.tcss
+screenshot/
 ```
 
 Commit named themes under `themes/` instead.
@@ -312,3 +313,12 @@ The list renderer intentionally uses one `Static` widget instead of Textual `Lis
 The current playback model is foreground `mpv`; when `mpv` exits, the UI returns.
 
 Future work should add a real `PlaybackManager` with mpv IPC instead of bolting player logic onto UI methods.
+
+Experimental real-server UI screenshots:
+
+```bash
+python tools/ui_screenshot_poc.py
+```
+
+This writes local SVG screenshots under `screenshot/`. The output can contain private media names and is ignored by git.
+The POC cycles discovered themes in memory for variety, but does not save the theme choice to `jbrowse.conf`.

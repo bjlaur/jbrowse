@@ -1,5 +1,31 @@
 # CHANGELOG.md
 
+## Unreleased
+
+Real-server UI screenshot POC.
+
+Changes:
+
+- Added `tools/ui_screenshot_poc.py` to harvest Textual SVG screenshots using the normal `jbrowse.conf`.
+- Ignored local `screenshot/` output because it can contain private media names.
+- Added a `BrowseApp` constructor switch so the screenshot harness can avoid rewriting the item cache during app construction.
+- Cycle discovered themes in memory so each screenshot uses a different theme without saving to config.
+- Added the active theme name to each SVG title because Textual's SVG renderer can make different dark themes look very similar.
+
+Testing summary:
+
+- Passed `python -m py_compile jbrowse.py tools/ui_screenshot_poc.py`.
+- Ran `python tools/ui_screenshot_poc.py` against the real configured Jellyfin server.
+- Confirmed `browser.svg`, `info.svg`, `subtitles.svg`, and `help.svg` were created under ignored `screenshot/`.
+- Confirmed screenshots used different themes without modifying `jbrowse.conf`.
+- Theme names are reflected in the SVG titles, but the visual differences are limited in the current SVG output and need another look later.
+
+Manual release check:
+
+- Run `python tools/ui_screenshot_poc.py`.
+- Confirm `screenshot/browser.svg`, `screenshot/info.svg`, `screenshot/subtitles.svg`, and `screenshot/help.svg` are created.
+- Confirm the screenshots use different themes and the configured theme in `jbrowse.conf` did not change.
+
 ## 0.0.25 - 2026-06-18
 
 Subtitle picker release.
