@@ -73,7 +73,7 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.32"
+CLIENT_VERSION = "0.0.33"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
@@ -235,8 +235,9 @@ class Theme:
     tcss: str
 
 
+@dataclasses.dataclass(frozen=True)
 class ThemeCycle:
-    pass
+    direction: int = 1
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1609,6 +1610,12 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
+        if event.key == "ctrl+shift+x":
+            self.save_ui_state()
+            self.exit(ThemeCycle(direction=-1))
+            event.stop()
+            return
+
         if event.key == "ctrl+x":
             self.save_ui_state()
             self.exit(ThemeCycle())
@@ -1850,6 +1857,9 @@ class BrowseApp(App[object]):
         self.set_timer(0.5, self.poll_playback_status)
 
     def poll_playback_status(self) -> None:
+        if not self._screen_stack:
+            return
+
         playback_active = self.playback_manager.is_active()
 
         if self.playback_was_active and not playback_active:
@@ -2394,7 +2404,7 @@ class BrowseApp(App[object]):
         help_text.append("Info: q/backspace close, Enter play, s subtitles, ←/→ episode, [/] season\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
         help_text.append("Ctrl+G       show last mpv output\n")
-        help_text.append("Ctrl+X       cycle theme and save it to jbrowse.conf\n")
+        help_text.append("Ctrl+X       next theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
         help_text.append("F1 or ?      show this help too\n")
         help_text.append("Ctrl+C       quit\n")
@@ -2819,7 +2829,7 @@ def browser_loop(
             return 0
 
         if isinstance(chosen, ThemeCycle):
-            theme_index = (theme_index + 1) % len(themes)
+            theme_index = (theme_index + chosen.direction) % len(themes)
             if persist_theme:
                 persist_style_path(cfg, themes[theme_index])
             print(f"Theme: {themes[theme_index].name}", file=sys.stderr)

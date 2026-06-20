@@ -62,6 +62,8 @@ Not implemented yet:
 
 These screenshots use the committed fictional fixture library, not a real Jellyfin server or media collection.
 
+See [THEMES.md](THEMES.md) for the complete named-theme gallery.
+
 ### Browser
 
 The main library view with the selected item highlighted.
@@ -431,6 +433,14 @@ Feature a specific fictional item in the captures with a title, filename, or ser
 ```bash
 python tools/svg_screenshot_poc.py --item "otter"
 ```
+
+Generate the complete named-theme gallery only when it is explicitly needed:
+
+```bash
+python tools/svg_screenshot_poc.py --item "otter" --all-themes
+```
+
+This replaces the tracked SVGs under `docs/themes/`; it is intentionally not part of the routine release harness run.
 
 Browse the same fixture data interactively without contacting Jellyfin or changing the real item cache/config:
 

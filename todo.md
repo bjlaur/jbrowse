@@ -1,8 +1,6 @@
 # todo.md
 
-
-
-## jbrowse TODO list, post-0.0.32
+## jbrowse TODO list, post-0.0.33
 
 This file is intended for Codex or another coding agent continuing the `jbrowse` project.
 
@@ -70,6 +68,7 @@ Shift+Enter  direct playback
 - [x] Numbered theme cycle order and SVG screenshot harness checks. Released in `0.0.31`.
 - [x] Background mpv while jbrowse stays open. Released in `0.0.32`.
 - [x] mpv output page. Released in `0.0.32`.
+- [x] Screenshot publishing fixtures, `--fake`, and the theme gallery. Released in `0.0.33`.
 
 ---
 
@@ -169,7 +168,7 @@ Keep IPC-specific work separate.
 
 ## 3. Screenshot publishing fixtures
 
-In progress for the next release.
+Completed in `0.0.33`.
 
 - [x] The SVG harness defaults to committed fictional media in `tools/fake_cache_data.json` or `.json.zst`.
 - [x] Use a committed fictional 5,000-item fixture library for realistic screenshot coverage.
@@ -177,6 +176,10 @@ In progress for the next release.
 - [x] Keep `--real` as an explicit cache/server mode for local inspection.
 - [x] Add `jbrowse --fake` for interactive fixture browsing without Jellyfin or cache/config writes.
 - [ ] Add a small Makefile-style release helper that runs the screenshot harness with `--item otter` so the documentation captures can be regenerated consistently each release.
+- [x] Record the theme regression cause in code, `AGENTS.md`, and `CHANGELOG.md`: inherited `NO_COLOR` flattened every theme; `Ctrl+X`/theme cycling was not the cause.
+- [x] On explicit request, capture every named theme under `docs/themes/`. Do not make this part of the routine per-release harness run.
+- [x] Add a release smoke check that confirms the selected theme's rendered colors differ from the previous theme before publishing screenshots.
+- [x] Publish this screenshot/fixture release after the targeted captures and theme checks are reviewed.
 
 ---
 
@@ -416,6 +419,12 @@ Terminal caveat:
 
 Do not assume all modified keys work in every terminal. Test real key events before documenting them as final.
 
+Theme and reversible-hotkey follow-up:
+
+- [ ] Revisit reverse theme cycling. `Ctrl+Shift+X` has dormant code, but the real terminal does not report it distinctly from `Ctrl+X`, so it is intentionally undocumented and untested for now.
+- Consider Shift-modified reverse hotkeys case by case; do not add them automatically where they make navigation less clear.
+- Choose and test a terminal-reliable alternative before exposing reverse theme cycling in help or documentation.
+
 ---
 
 ## 12. Jellyfin playback reporting notes
@@ -646,23 +655,36 @@ The current README has a bunch of information it probably does not need. Discuss
 
 ---
 
+## 21. Windows portability release
+
+Later dedicated release. Keep Linux/Arch development moving independently until this is intentionally scheduled.
+
+Scope to plan before implementation:
+
+- Verify Textual browsing, themes, fake fixture mode, and mpv launching in a supported Windows terminal.
+- Make config, cache, state, theme, and executable-path handling platform-safe.
+- Identify Windows equivalents or clear fallbacks for `zstd`, `mpv`, and packaging/install instructions.
+- Add Windows-focused smoke checks and documentation without exposing private fixture or server data.
+
+---
+
 ## Suggested order from here
 
 ```text
-1. Screenshot publishing fixtures
-2. Server-side safety guard
-3. Background playback cleanup
-4. mpv IPC
-5. Accurate Jellyfin playback reporting
-6. mpv log page
-7. Now Playing page
-8. Replace playback prompt
-9. Static bitrate/transcoding
-10. Audio picker
-11. Better help text / key map cleanup
-12. Split into modules
-13. Build files and Arch packaging skeleton
-14. Packaging/name cleanup
+1. Server-side safety guard
+2. Background playback cleanup
+3. mpv IPC
+4. Accurate Jellyfin playback reporting
+5. mpv log page
+6. Now Playing page
+7. Replace playback prompt
+8. Static bitrate/transcoding
+9. Audio picker
+10. Better help text / key map cleanup
+11. Split into modules
+12. Build files and Arch packaging skeleton
+13. Packaging/name cleanup
+14. Windows portability release
 15. Rewrite README from scratch
 ```
 

@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-## Unreleased
+## 0.0.33 - 2026-06-20
 
 Screenshot fixture work in progress.
 
@@ -15,6 +15,9 @@ Changes:
 - Made fixture screenshots start from the first committed theme rather than a local style override.
 - Added `jbrowse --fake` to browse fixture data interactively without Jellyfin or real cache/config writes.
 - Added selected SVG fixture screenshots under `docs/screenshots/` for README use.
+- Fixed theme colors being flattened by inherited `NO_COLOR`; the `Ctrl+X` cycle path was not the cause.
+- Added an on-request `--all-themes` harness mode that writes the full theme gallery under `docs/themes/`.
+- Made the SVG harness assert each capture includes the selected theme's rendered background color.
 
 Testing summary:
 
@@ -22,11 +25,13 @@ Testing summary:
 - Passed JSON validation for `tools/fake_cache_data.json`.
 - Ran `python tools/svg_screenshot_poc.py --playback-smoke` with fixture data.
 - Confirmed browser, theme-cycle, info, subtitles, help, mpv-log, and refreshing SVG checks passed.
-- Known gap: `--real` remains available but was not run for this release, to avoid touching private local data during automated verification.
+- Ran `python tools/svg_screenshot_poc.py --item otter --all-themes` and generated one verified browser capture for every named theme.
+- Known gap: `--real` remains available but was not run for this release, to avoid touching private local data during automated verification. Reverse theme cycling remains deferred because the real terminal does not distinguish `Ctrl+Shift+X` from `Ctrl+X`.
 
 Manual release check:
 
-- Run `python tools/svg_screenshot_poc.py` and confirm the generated SVGs show Lorem Ipsum fixture media.
+- Run `python tools/svg_screenshot_poc.py --item otter` and confirm the generated SVGs use the selected fixture item.
+- Press `Ctrl+X` and confirm it cycles to the next theme.
 - Optionally run `python tools/svg_screenshot_poc.py --real` and confirm it uses your local media data.
 
 ## 0.0.32 - 2026-06-19

@@ -68,6 +68,11 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="case-insensitive title, filename, or series substring to feature in captures",
     )
+    parser.add_argument(
+        "--all-themes",
+        action="store_true",
+        help="write one browser SVG per theme under docs/themes",
+    )
     return parser.parse_args()
 
 
@@ -367,6 +372,30 @@ async def main_async(args: argparse.Namespace) -> int:
         log(f"featuring {demo_item.title}")
 
     themes = discover_themes(theme_start)
+    if args.all_themes:
+        gallery = ROOT / "docs" / "themes"
+        gallery.mkdir(parents=True, exist_ok=True)
+        for old_svg in gallery.glob("*.svg"):
+            old_svg.unlink()
+
+        for theme in themes:
+            filename = theme.path.stem if theme.path is not None else theme.name
+            await export_view(
+                cfg,
+                client,
+                items,
+                demo_item,
+                theme,
+                args.size,
+                gallery / f"{filename}.svg",
+                "browser",
+                ["showing", "display:", "style:"],
+            )
+
+        if args.playback_smoke:
+            run_playback_smoke(cfg)
+        return 0
+
     output = Path(args.output).expanduser()
     output.mkdir(parents=True, exist_ok=True)
     for old_svg in output.glob("*.svg"):

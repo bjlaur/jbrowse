@@ -30,6 +30,7 @@
 - F2 was rejected as an info key. Current behavior is `Enter` for info and `Shift+Enter` for direct playback.
 - No `[player]` config yet. `mpv` playback is intentionally simple, with only the lightweight `[mpv] mpv_cmd` command template.
 - Manual and periodic refresh are backgrounded. Keep future refresh work separate from playback architecture.
+- Named themes intentionally ignore inherited `NO_COLOR`; otherwise Textual flattens every theme to monochrome. `Ctrl+X` returns `ThemeCycle` and the outer browser loop rebuilds the app with the next theme; do not replace that flow with direct stylesheet swapping.
 
 ## Verification
 
