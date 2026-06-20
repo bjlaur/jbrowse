@@ -50,7 +50,7 @@ def parse_size(value: str) -> tuple[int, int]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Tiny Textual SVG screenshot POC")
-    parser.add_argument("--output", default="screenshot", help="output directory")
+    parser.add_argument("--output", default="tools/screenshot", help="output directory")
     parser.add_argument("--size", default="120x36", type=parse_size, help="terminal size")
     parser.add_argument(
         "--playback-smoke",
@@ -62,10 +62,23 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="use the local config/cache and Jellyfin server instead of fictional fixtures",
     )
+    parser.add_argument(
+        "--item",
+        default="",
+        help="case-insensitive title, filename, or series substring to feature in captures",
+    )
     return parser.parse_args()
 
 
-def choose_demo_item(items: list[MediaItem]) -> MediaItem:
+def choose_demo_item(items: list[MediaItem], query: str = "") -> MediaItem:
+    if query:
+        needle = query.casefold()
+        for item in items:
+            haystack = "\n".join((item.title, item.filename, item.series_name)).casefold()
+            if needle in haystack:
+                return item
+        raise RuntimeError(f"No fixture item matches --item {query!r}")
+
     for item in items:
         if 1 <= len(item.subtitle_tracks) <= 12:
             return item
@@ -113,6 +126,7 @@ async def export_view(
     cfg,
     client,
     items: list[MediaItem],
+    demo_item: MediaItem,
     theme: Theme,
     size: tuple[int, int],
     output_path: Path,
@@ -120,7 +134,6 @@ async def export_view(
     expected: list[str],
 ) -> object:
     BrowseApp.CSS = theme.tcss
-    demo_item = choose_demo_item(items)
     app = BrowseApp(
         cfg,
         client,
@@ -143,6 +156,10 @@ async def export_view(
 
         if view == "info":
             await pilot.press("enter")
+            await settle(app, pilot)
+        elif view == "search":
+            app.query.focus()
+            await pilot.press(*"otter")
             await settle(app, pilot)
         elif view == "subtitles":
             await pilot.press("enter")
@@ -332,6 +349,10 @@ async def main_async(args: argparse.Namespace) -> int:
         theme_start = initial_theme(ROOT / "themes" / "01-jbrowse-amber-dim.tcss")
         log("using fictional publishing fixtures")
 
+    demo_item = choose_demo_item(items, args.item)
+    if args.item:
+        log(f"featuring {demo_item.title}")
+
     themes = discover_themes(theme_start)
     output = Path(args.output).expanduser()
     output.mkdir(parents=True, exist_ok=True)
@@ -342,6 +363,7 @@ async def main_async(args: argparse.Namespace) -> int:
         cfg,
         client,
         items,
+        demo_item,
         themes[0],
         args.size,
         output / "browser.svg",
@@ -353,6 +375,7 @@ async def main_async(args: argparse.Namespace) -> int:
         cfg,
         client,
         items,
+        demo_item,
         themes[0],
         args.size,
         output / "after-ctrl-x.svg",
@@ -367,6 +390,7 @@ async def main_async(args: argparse.Namespace) -> int:
         cfg,
         client,
         items,
+        demo_item,
         themes[1 % len(themes)],
         args.size,
         output / "after-ctrl-x.svg",
@@ -375,6 +399,7 @@ async def main_async(args: argparse.Namespace) -> int:
     )
 
     captures = [
+        ("search.svg", "search", ["otter", "matched", "showing"]),
         ("info.svg", "info", ["Info", "Subtitles"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
         ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+X"]),
@@ -386,6 +411,7 @@ async def main_async(args: argparse.Namespace) -> int:
             cfg,
             client,
             items,
+            demo_item,
             themes[index % len(themes)],
             args.size,
             output / filename,

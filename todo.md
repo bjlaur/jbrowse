@@ -176,6 +176,7 @@ In progress for the next release.
 - [x] Keep generated `screenshot/` files ignored; add selected documentation images only on request.
 - [x] Keep `--real` as an explicit cache/server mode for local inspection.
 - [x] Add `jbrowse --fake` for interactive fixture browsing without Jellyfin or cache/config writes.
+- [ ] Add a small Makefile-style release helper that runs the screenshot harness with `--item otter` so the documentation captures can be regenerated consistently each release.
 
 ---
 

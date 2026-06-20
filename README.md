@@ -62,13 +62,53 @@ Not implemented yet:
 
 These screenshots use the committed fictional fixture library, not a real Jellyfin server or media collection.
 
+### Browser
+
+The main library view with the selected item highlighted.
+
 ![Browser screenshot](docs/screenshots/browser.svg)
+
+### Theme Cycle
+
+The browser after a `Ctrl+X` theme cycle.
+
+![Theme cycle screenshot](docs/screenshots/after-ctrl-x.svg)
+
+### Search
+
+Typing `otter` filters the fixture library and shows the current match count.
+
+![Search screenshot](docs/screenshots/search.svg)
+
+### Item Information
+
+Episode details, stream metadata, and the current subtitle choice.
 
 ![Item information screenshot](docs/screenshots/info.svg)
 
+### Subtitle Picker
+
+The per-item subtitle selector opened from the information panel.
+
 ![Subtitle picker screenshot](docs/screenshots/subtitles.svg)
 
+### Help
+
+The in-app keyboard reference.
+
+![Help screenshot](docs/screenshots/help.svg)
+
+### mpv Log
+
+The captured mpv command and output view.
+
 ![mpv log screenshot](docs/screenshots/mpv-log.svg)
+
+### Refresh State
+
+The browser while a background refresh is in progress.
+
+![Refresh state screenshot](docs/screenshots/refreshing.svg)
 
 ## Requirements
 
@@ -384,7 +424,13 @@ Experimental fixture UI screenshots:
 python tools/svg_screenshot_poc.py
 ```
 
-This writes local SVG screenshots under `screenshot/` using committed fictional data from `tools/fake_cache_data.json` or, when present, `tools/fake_cache_data.json.zst`. The output is ignored by git so screenshots can be regenerated freely and only selected documentation images need to be added deliberately.
+This writes local SVG screenshots under `tools/screenshot/` using committed fictional data from `tools/fake_cache_data.json` or, when present, `tools/fake_cache_data.json.zst`. The output is ignored by git so screenshots can be regenerated freely and only selected documentation images need to be added deliberately.
+
+Feature a specific fictional item in the captures with a title, filename, or series substring:
+
+```bash
+python tools/svg_screenshot_poc.py --item "otter"
+```
 
 Browse the same fixture data interactively without contacting Jellyfin or changing the real item cache/config:
 

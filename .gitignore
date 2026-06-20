@@ -18,7 +18,7 @@ jbrowse.items.json.tmp
 jbrowse.tcss
 
 # Local screenshot harvests: can contain private media names.
-screenshot/
+tools/screenshot/
 
 # Temporary source/output files used while generating the committed fake fixture.
 tools/batches/
