@@ -21,6 +21,7 @@
 - Example config: `jbrowse.conf.example`; this is safe to commit.
 - State file: `jbrowse.state`; ignored.
 - Item cache: `jbrowse.items.json`; ignored because it can contain private media names/paths.
+- Playback diagnostics: timestamped `~/.cache/jbrowse/mpv.out-*`; local because they can contain private media names and report details.
 - Local style override: `jbrowse.tcss`; ignored. Named theme files belong under `themes/` and are safe to commit.
 
 ## Important Design Decisions
@@ -31,6 +32,7 @@
 - No `[player]` config yet. `mpv` playback is intentionally simple, with only the lightweight `[mpv] mpv_cmd` command template.
 - Manual and periodic refresh are backgrounded. Keep future refresh work separate from playback architecture.
 - Named themes intentionally ignore inherited `NO_COLOR`; otherwise Textual flattens every theme to monochrome. `Ctrl+X` returns `ThemeCycle` and the outer browser loop rebuilds the app with the next theme; do not replace that flow with direct stylesheet swapping.
+- Jellyfin playback reports are the only intentional server mutations. Register any future server write in `SERVER_MUTATION_OPERATIONS` before sending it; do not turn normal browse/cache/screenshot paths into server writes.
 
 ## Verification
 
@@ -71,3 +73,10 @@ These strings may become valid later for mpv IPC or player config.
 3. Keep build/packaging polish lower priority unless explicitly requested.
 
 Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.
+
+## Current Playback Debugging Handoff
+
+- The current background-playback cleanup work is uncommitted. It adds `Ctrl+K` to stop mpv, a deliberate two-step quit, info-panel `Progress`, registered Jellyfin mutation endpoints, and timestamped playback diagnostics.
+- The developer manually tried both stopping mpv directly with `Ctrl+C` and `Ctrl+K`; the info-panel `Progress` did not update afterward. Do not assume Jellyfin playback reporting works in normal use.
+- Each new playback writes a private, unredacted log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`. It records the exact mpv command, mpv output/exit code, and each Jellyfin start/progress/stopped report result. Do not print or commit its contents because it can contain stream credentials.
+- Next debugging step: reproduce one real playback, inspect the newest local log manually for report failures or return codes, then trace why accepted reports are not reflected in Jellyfin. Keep this separate from mpv IPC work.

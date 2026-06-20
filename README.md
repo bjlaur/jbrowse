@@ -28,6 +28,7 @@ Current features:
 - Title/filename display modes.
 - Regex search using `/pattern`.
 - Info page with Jellyfin-style media details.
+- Jellyfin resume progress on the info page.
 - Episode navigation from info page.
 - Subtitle picker from the info page.
 - Background `mpv` playback while `jbrowse` stays open.
@@ -266,7 +267,9 @@ $start     --start=SECONDS, omitted when there is no resume position
 
 ## Server writes
 
-Current `jbrowse` server calls include login, item fetching, screenshot harvesting, stream URL construction, and minimal Jellyfin playback session reporting. After playback returns, `jbrowse` refreshes in the background so local sort/cache data can pick up changed Jellyfin playback metadata. Future features that write additional Jellyfin state, such as manual watched-state changes, metadata edits, deletes, favorites, or played/unplayed toggles, should be documented and gated intentionally when they are added.
+Login, item fetching, screenshot harvesting, and stream URL construction do not write Jellyfin media state. The only intentional server mutations are the registered playback session reports: start, progress, and stopped. After playback returns, `jbrowse` refreshes in the background so local sort/cache data can pick up changed Jellyfin playback metadata. Future features that write additional Jellyfin state, such as manual watched-state changes, metadata edits, deletes, favorites, or played/unplayed toggles, should be documented and explicitly registered when they are added.
+
+For local playback troubleshooting, each playback writes a timestamped `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff` file. It records the exact command, mpv output and exit code, plus whether each Jellyfin playback report was accepted or failed. These local logs can contain stream credentials; do not share them.
 
 ## Controls
 
@@ -286,11 +289,12 @@ Typing       from list: return to search and keep typed char
 Esc          clear search
 /pattern     regex search
 Ctrl+R       refresh Jellyfin list in the background
-Ctrl+G       show last mpv output
+Ctrl+G       show mpv output
+Ctrl+K       stop active mpv playback
 Ctrl+X       cycle theme and save it to jbrowse.conf
 Ctrl+L       show help
 F1 or ?      show help
-Ctrl+C       quit
+Ctrl+C       quit (stops active mpv first)
 ```
 
 ### Info page
@@ -315,7 +319,7 @@ Enter        apply
 q/backspace  cancel
 ```
 
-Subtitle choices are runtime-only for now. `auto` keeps mpv's default behavior, `none` disables subtitles, and a selected Jellyfin subtitle stream is passed to `mpv` as a best-effort track selection.
+The info page's `Progress` field shows Jellyfin's saved resume position as `elapsed / runtime`. It updates after the post-playback background refresh completes. Subtitle choices are runtime-only for now. `auto` keeps mpv's default behavior, `none` disables subtitles, and a selected Jellyfin subtitle stream is passed to `mpv` as a best-effort track selection.
 
 ## Search
 

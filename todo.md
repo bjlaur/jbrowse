@@ -121,6 +121,8 @@ This unlocks:
 
 Likely next release should be a small background playback cleanup release, not full mpv IPC.
 
+Manual verification gap: automated real-server smoke testing in `0.0.30` observed Jellyfin playback updates, but the developer has not personally checked that reporting works in normal day-to-day playback. The info panel now shows Jellyfin's saved `Progress`, so include one concise before/after manual check in this release.
+
 Current behavior:
 
 ```text
@@ -140,12 +142,14 @@ switch/focus mpv output view
 
 Suggested scope:
 
-- Add a simple hotkey to stop active mpv from `jbrowse`.
-- Make quitting while mpv is active deliberate.
-- Lightly polish the `Ctrl+G` mpv output page.
-- Discuss whether to add an undocumented local config version guard before future `jbrowse.conf` writes.
-- Update the screenshot harness if the log page visual changes.
-- Test with compile, SVG harness, and fake playback smoke.
+- [x] Add `Ctrl+K` to stop active mpv from `jbrowse`.
+- [x] Make quitting while mpv is active deliberate: the first quit hotkey stops it, and the second quits after playback ends.
+- [x] Lightly polish the `Ctrl+G` mpv output page with playback status.
+- [x] Keep Jellyfin writes explicitly registered in one place; playback session reporting is the only currently allowed server mutation.
+- Defer the separate local `jbrowse.conf` stale-write guard discussion.
+- [x] Update the screenshot harness for the log-page change and fake stop path.
+- [x] Test with compile, SVG harness, and fake playback smoke.
+- [ ] Manually note an item's info-panel `Progress`, play it briefly, then confirm its refreshed `Progress` updates in normal use.
 
 Config guard idea to discuss before implementing:
 

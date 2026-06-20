@@ -89,6 +89,11 @@ SORT_MODE_LABELS = {
     "name": "name",
     "series": "series order",
 }
+SERVER_MUTATION_OPERATIONS = {
+    "/Sessions/Playing": "playback start report",
+    "/Sessions/Playing/Progress": "playback progress report",
+    "/Sessions/Playing/Stopped": "playback stopped report",
+}
 
 
 def script_dir() -> Path:
@@ -126,6 +131,11 @@ def default_item_cache_path() -> Path:
         return local
 
     return Path.home() / ".cache" / APP_NAME / "jbrowse.items.json"
+
+
+def default_mpv_log_path() -> Path:
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    return Path.home() / ".cache" / APP_NAME / f"mpv.out-{stamp}"
 
 
 def default_style_path() -> Optional[Path]:
@@ -427,6 +437,7 @@ class MediaItem:
     date_created: str
     last_played: str
     resume_ticks: int
+    runtime_ticks: int
     info_lines: list[str]
     subtitle_tracks: list[SubtitleTrack]
 
@@ -697,9 +708,13 @@ class JellyfinClient:
             f"&DeviceId={self.state.deviceid}"
         )
 
-    def post_playback_report(self, endpoint: str, payload: dict[str, Any]) -> None:
+    def post_server_mutation(self, endpoint: str, payload: dict[str, Any]) -> None:
+        """Send one of jbrowse's explicitly allowed Jellyfin write requests."""
         if self.auth is None:
             raise JellyfinError("not logged in")
+
+        if endpoint not in SERVER_MUTATION_OPERATIONS:
+            raise JellyfinError(f"refusing unregistered Jellyfin mutation: {endpoint}")
 
         try:
             response = self.session.post(
@@ -713,13 +728,13 @@ class JellyfinClient:
             raise JellyfinError(f"playback report failed: {exc}") from exc
 
     def report_playback_started(self, payload: dict[str, Any]) -> None:
-        self.post_playback_report("/Sessions/Playing", payload)
+        self.post_server_mutation("/Sessions/Playing", payload)
 
     def report_playback_progress(self, payload: dict[str, Any]) -> None:
-        self.post_playback_report("/Sessions/Playing/Progress", payload)
+        self.post_server_mutation("/Sessions/Playing/Progress", payload)
 
     def report_playback_stopped(self, payload: dict[str, Any]) -> None:
-        self.post_playback_report("/Sessions/Playing/Stopped", payload)
+        self.post_server_mutation("/Sessions/Playing/Stopped", payload)
 
 
 class FakeJellyfinClient:
@@ -781,6 +796,7 @@ def parse_item(raw: dict[str, Any]) -> Optional[MediaItem]:
         date_created=raw.get("DateCreated") or "",
         last_played=user_data.get("LastPlayedDate") or "",
         resume_ticks=int(user_data.get("PlaybackPositionTicks") or 0),
+        runtime_ticks=int(raw.get("RunTimeTicks") or 0),
         info_lines=make_info_lines(raw, title, filename),
         subtitle_tracks=subtitle_tracks(raw),
     )
@@ -848,6 +864,14 @@ def format_runtime_minutes(ticks: int) -> str:
         return ""
 
     return f"{minutes} m"
+
+
+def format_progress(ticks: int, runtime_ticks: int) -> str:
+    position = format_seconds(ticks / TICKS_PER_SECOND)
+    if runtime_ticks:
+        runtime = format_seconds(runtime_ticks / TICKS_PER_SECOND)
+        return f"{position} / {runtime}"
+    return position
 
 
 def format_date_short(value: str) -> str:
@@ -1104,6 +1128,15 @@ def make_info_lines(raw: dict[str, Any], title: str, filename: str) -> list[str]
     if subtitle:
         add_kv(lines, "Subtitles", subtitle)
 
+    add_kv(
+        lines,
+        "Progress",
+        format_progress(
+            int(user_data.get("PlaybackPositionTicks") or 0),
+            int(raw.get("RunTimeTicks") or 0),
+        ),
+    )
+
     overview = (raw.get("Overview") or "").strip()
     if overview:
         lines.append("")
@@ -1128,6 +1161,19 @@ def make_info_lines(raw: dict[str, Any], title: str, filename: str) -> list[str]
     lines.append("")
     lines.extend(technical_detail_lines(raw))
 
+    return lines
+
+
+def add_progress_info_line(
+    info_lines: list[str], resume_ticks: int, runtime_ticks: int
+) -> list[str]:
+    if any(line.startswith("Progress:") for line in info_lines):
+        return info_lines
+
+    lines = list(info_lines)
+    progress_line = f"Progress: {format_progress(resume_ticks, runtime_ticks)}"
+    insert_at = next((index for index, line in enumerate(lines[2:], start=2) if not line), len(lines))
+    lines.insert(insert_at, progress_line)
     return lines
 
 def parse_jf_date(value: str) -> dt.datetime:
@@ -1234,6 +1280,10 @@ def media_item_from_cache(row: dict[str, Any]) -> Optional[MediaItem]:
             if track is not None:
                 cached_subtitles.append(track)
 
+        resume_ticks = int(row.get("resume_ticks") or 0)
+        runtime_ticks = int(row.get("runtime_ticks") or 0)
+        info_lines = [str(line) for line in row.get("info_lines", [])]
+
         return MediaItem(
             id=str(row["id"]),
             title=str(row["title"]),
@@ -1245,8 +1295,9 @@ def media_item_from_cache(row: dict[str, Any]) -> Optional[MediaItem]:
             premiere_date=str(row.get("premiere_date") or ""),
             date_created=str(row.get("date_created") or ""),
             last_played=str(row.get("last_played") or ""),
-            resume_ticks=int(row.get("resume_ticks") or 0),
-            info_lines=[str(line) for line in row.get("info_lines", [])],
+            resume_ticks=resume_ticks,
+            runtime_ticks=runtime_ticks,
+            info_lines=add_progress_info_line(info_lines, resume_ticks, runtime_ticks),
             subtitle_tracks=cached_subtitles,
         )
     except (KeyError, TypeError, ValueError):
@@ -1595,6 +1646,11 @@ class BrowseApp(App[object]):
         self.note_activity()
 
         if event.key in {"ctrl+c", "ctrl+q"}:
+            if self.playback_manager.stop_active():
+                self.refresh_message = "stopping mpv; press again to quit"
+                self.update_bottom_status()
+                event.stop()
+                return
             self.save_ui_state()
             self.exit(None)
             event.stop()
@@ -1607,6 +1663,15 @@ class BrowseApp(App[object]):
 
         if event.key == "ctrl+g":
             self.open_mpv_log()
+            event.stop()
+            return
+
+        if event.key == "ctrl+k":
+            if self.playback_manager.stop_active():
+                self.refresh_message = "stopping mpv..."
+            else:
+                self.refresh_message = "no active mpv playback"
+            self.update_bottom_status()
             event.stop()
             return
 
@@ -2322,6 +2387,10 @@ class BrowseApp(App[object]):
             ]
 
         lines = [
+            "Status",
+            "------",
+            "playing" if playback["active"] else "not playing (last captured output)",
+            "",
             "Command",
             "-------",
             command,
@@ -2353,8 +2422,7 @@ class BrowseApp(App[object]):
             if line_number:
                 text.append("\n")
 
-            absolute_line = self.mpv_log_scroll + line_number
-            if absolute_line in {0, 4} and line in {"Command", "Output"}:
+            if line in {"Status", "Command", "Output"}:
                 text.append(line, style="bold")
             elif line and set(line) == {"-"}:
                 text.append(line, style="dim")
@@ -2403,11 +2471,12 @@ class BrowseApp(App[object]):
         help_text.append("Ctrl+O       toggle ascending/descending sort\n")
         help_text.append("Info: q/backspace close, Enter play, s subtitles, ←/→ episode, [/] season\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
-        help_text.append("Ctrl+G       show last mpv output\n")
+        help_text.append("Ctrl+G       show mpv output\n")
+        help_text.append("Ctrl+K       stop active mpv playback\n")
         help_text.append("Ctrl+X       next theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
         help_text.append("F1 or ?      show this help too\n")
-        help_text.append("Ctrl+C       quit\n")
+        help_text.append("Ctrl+C       quit (stops mpv first)\n")
         help_text.append("\n")
         help_text.append("Press any key to close this help.", style="dim")
         self.listbox.update(self.overlay_panel(help_text, "Help"))
@@ -2492,25 +2561,8 @@ def subtitle_track_for_choice(item: MediaItem, choice: str) -> Optional[Subtitle
     return None
 
 
-def redact_url(value: str) -> str:
-    parsed = urllib.parse.urlsplit(value)
-
-    if not parsed.scheme or not parsed.netloc:
-        return value
-
-    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
-    redacted_query = [
-        (key, "REDACTED" if key.lower() in {"api_key", "apikey", "token", "access_token"} else item)
-        for key, item in query
-    ]
-
-    return urllib.parse.urlunsplit(
-        parsed._replace(query=urllib.parse.urlencode(redacted_query))
-    )
-
-
 def debug_mpv_command(args: list[str]) -> str:
-    return shlex.join([redact_url(arg) for arg in args])
+    return shlex.join(args)
 
 
 def expand_mpv_token(token: str, values: dict[str, str]) -> str:
@@ -2570,6 +2622,7 @@ def build_mpv_command(
 class PlaybackManager:
     def __init__(self, client: JellyfinClient):
         self.client = client
+        self.log_path = default_mpv_log_path()
         self.started_at = 0.0
         self.item: Optional[MediaItem] = None
         self.play_session_id = ""
@@ -2578,6 +2631,17 @@ class PlaybackManager:
         self.last_command = ""
         self.last_return_code: Optional[int] = None
         self.lock = threading.Lock()
+        self.log_lock = threading.Lock()
+
+    def write_log(self, text: str, reset: bool = False) -> None:
+        """Keep a local, redacted trace of the most recent playback."""
+        try:
+            with self.log_lock:
+                self.log_path.parent.mkdir(parents=True, exist_ok=True)
+                with self.log_path.open("w" if reset else "a", encoding="utf-8") as fh:
+                    fh.write(text)
+        except OSError as exc:
+            print(f"Could not write mpv log {self.log_path}: {exc}", file=sys.stderr)
 
     def position_ticks(self) -> int:
         if self.item is None or self.started_at <= 0:
@@ -2604,11 +2668,35 @@ class PlaybackManager:
         try:
             reporter(self.playback_payload(item, position_ticks))
         except JellyfinError as exc:
-            print(f"Jellyfin playback {label} report failed: {exc}", file=sys.stderr)
+            message = f"Jellyfin playback {label} report failed: {exc}"
+            print(message, file=sys.stderr)
+            self.append_output(f"{message}\n")
+        else:
+            self.append_output(
+                f"Jellyfin playback {label} report accepted "
+                f"at {format_seconds(position_ticks / TICKS_PER_SECOND)}\n"
+            )
 
     def is_active(self) -> bool:
         with self.lock:
             return self.process is not None and self.process.poll() is None
+
+    def stop_active(self) -> bool:
+        """Request a normal mpv stop; the waiter sends the final report."""
+        with self.lock:
+            process = self.process
+            active = process is not None and process.poll() is None
+
+        if not active or process is None:
+            return False
+
+        try:
+            process.terminate()
+        except OSError:
+            return False
+
+        self.append_output("jbrowse requested mpv stop\n")
+        return True
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
@@ -2630,15 +2718,26 @@ class PlaybackManager:
             self.output_lines.append(text)
             if len(self.output_lines) > 2000:
                 del self.output_lines[: len(self.output_lines) - 2000]
+        self.write_log(text)
 
     def start_background(self, item: MediaItem, subtitle_choice: str = "auto") -> str:
         with self.lock:
             if self.process is not None and self.process.poll() is None:
                 return "mpv is already running"
 
+        self.log_path = default_mpv_log_path()
+
         url = self.client.stream_url(item)
         args, subtitle_track = build_mpv_command(self.client.cfg, item, url, subtitle_choice)
         command = debug_mpv_command(args)
+
+        self.write_log(
+            "=== jbrowse playback ===\n"
+            f"Started: {dt.datetime.now().isoformat(timespec='seconds')}\n"
+            f"Now Playing: {item.filename}\n"
+            f"mpv command: {command}\n",
+            reset=True,
+        )
 
         if subtitle_choice == "none":
             subtitle_line = "Subtitles: none\n"
@@ -2657,6 +2756,7 @@ class PlaybackManager:
                 errors="replace",
             )
         except FileNotFoundError:
+            self.write_log(f"could not find mpv executable: {args[0]}\n")
             return f"could not find mpv executable: {args[0]}"
 
         with self.lock:
@@ -2703,6 +2803,7 @@ class PlaybackManager:
     def wait_for_background_playback(self, process: subprocess.Popen, item: MediaItem) -> None:
         return_code = process.wait()
         final_position = self.position_ticks()
+        self.append_output(f"mpv exited with return code {return_code}\n")
         self.report("progress", self.client.report_playback_progress, item, final_position)
         self.report("stopped", self.client.report_playback_stopped, item, final_position)
 

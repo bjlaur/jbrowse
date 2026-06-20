@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--playback-smoke",
         action="store_true",
-        help="also run a fake 3-second background playback capture smoke test",
+        help="also run a fake background playback stop/output smoke test",
     )
     parser.add_argument(
         "--real",
@@ -297,13 +297,14 @@ def fake_playback_item() -> MediaItem:
         date_created="",
         last_played="",
         resume_ticks=0,
+        runtime_ticks=0,
         info_lines=["Fake Playback"],
         subtitle_tracks=[],
     )
 
 
 def run_playback_smoke(cfg) -> dict:
-    log("running fake playback smoke; this intentionally emits output for 3 seconds")
+    log("running fake playback smoke; this intentionally emits output until stopped")
     fake_cfg = dataclasses.replace(
         cfg,
         mpv_cmd=[
@@ -313,7 +314,7 @@ def run_playback_smoke(cfg) -> dict:
                 "import datetime, sys, time; "
                 "print('fake mpv start'); "
                 "sys.stdout.flush(); "
-                "\nfor tick in range(1, 7):\n"
+                "\nfor tick in range(1, 21):\n"
                 "    time.sleep(0.5)\n"
                 "    print(f'fake mpv tick {tick} {datetime.datetime.now().isoformat(timespec=\"seconds\")}')\n"
                 "    sys.stdout.flush()\n"
@@ -333,7 +334,16 @@ def run_playback_smoke(cfg) -> dict:
     if not manager.is_active():
         raise RuntimeError("fake playback did not start in the background")
 
-    deadline = time.monotonic() + 10
+    output_deadline = time.monotonic() + 3
+    while "fake mpv tick 1" not in manager.snapshot()["output"] and time.monotonic() < output_deadline:
+        time.sleep(0.1)
+
+    if "fake mpv tick 1" not in manager.snapshot()["output"]:
+        raise RuntimeError("fake playback did not produce delayed output")
+    if not manager.stop_active():
+        raise RuntimeError("fake playback did not accept stop request")
+
+    deadline = time.monotonic() + 5
     while manager.is_active() and time.monotonic() < deadline:
         time.sleep(0.1)
 
@@ -341,17 +351,15 @@ def run_playback_smoke(cfg) -> dict:
         raise RuntimeError("fake playback did not finish")
 
     result = manager.snapshot()
-    if result["return_code"] != 0:
-        raise RuntimeError(f"fake playback returned {result['return_code']}")
     if (
         "fake mpv start" not in result["output"]
-        or "fake mpv tick 6" not in result["output"]
-        or "fake mpv end" not in result["output"]
+        or "fake mpv tick 1" not in result["output"]
+        or "jbrowse requested mpv stop" not in result["output"]
     ):
         raise RuntimeError("fake playback output was not captured")
-    if "api_key=REDACTED" not in result["command"]:
-        raise RuntimeError("fake playback command was not redacted")
-    log("fake playback smoke captured command/output")
+    if "api_key=fixture-token" not in result["command"]:
+        raise RuntimeError("fake playback command was not captured exactly")
+    log("fake playback smoke stopped background playback and captured command/output")
     return result
 
 
@@ -442,10 +450,10 @@ async def main_async(args: argparse.Namespace) -> int:
 
     captures = [
         ("search.svg", "search", ["otter", "matched", "showing"]),
-        ("info.svg", "info", ["Info", "Subtitles"]),
+        ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
-        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+X"]),
-        ("mpv-log.svg", "mpv-log", ["mpv log", "mpv --fake-demo", "line one"]),
+        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X"]),
+        ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
     ]
     for index, (filename, view, expected) in enumerate(captures, start=2):
