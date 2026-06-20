@@ -62,6 +62,7 @@ These strings may become valid later for mpv IPC or player config.
 - Keep completed roadmap items in `todo.md` marked as done/crossed out instead of deleting them.
 - After each release, add a small `CHANGELOG.md` entry.
 - Each changelog entry should include a very small testing summary and note any important manual test gap.
+- When the user says to commit and/or push, treat that request as a Git-only operation. Do not make further file changes in that step. If a file change is still needed, stop and ask: "I just made my last changes before commit/push. Good to continue?"
 
 ## Near-Term Roadmap
 
