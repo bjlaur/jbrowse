@@ -59,6 +59,9 @@ except ImportError:
     print("Missing dependency: requests\nInstall with: pip install requests", file=sys.stderr)
     raise SystemExit(1)
 
+# Named themes are a core feature; an inherited NO_COLOR would flatten them all.
+os.environ.pop("NO_COLOR", None)
+
 try:
     from textual.app import App, ComposeResult
     from textual.containers import Vertical

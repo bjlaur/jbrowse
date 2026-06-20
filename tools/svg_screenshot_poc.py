@@ -8,6 +8,7 @@ import asyncio
 import dataclasses
 import html
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -115,9 +116,20 @@ def check_svg(name: str, svg: str, expected: list[str]) -> None:
         raise RuntimeError(f"{name} missing expected text: {', '.join(missing)}")
 
 
+def check_theme_svg(name: str, svg: str, theme: Theme) -> None:
+    match = re.search(r"Screen\s*\{[^}]*background:\s*(#[0-9a-fA-F]{6})", theme.tcss, re.DOTALL)
+    if match is None:
+        raise RuntimeError(f"{theme.name} has no Screen background color")
+    if match.group(1).lower() not in svg.lower():
+        raise RuntimeError(f"{name} did not render {theme.name}'s Screen background")
+
+
 async def settle(app: BrowseApp, pilot) -> None:
     app.render_items()
     app.update_status()
+    for widget in app.screen.walk_children(with_self=True):
+        widget._styles_cache.clear()
+        widget.refresh(layout=True)
     await pilot.pause(1.0)
     await pilot.wait_for_scheduled_animations()
 
@@ -189,6 +201,7 @@ async def export_view(
         svg = app.export_screenshot(title=f"{output_path.name} - {theme.name}")
         output_path.write_text(svg, encoding="utf-8")
         check_svg(output_path.name, svg, [theme.name, *expected])
+        check_theme_svg(output_path.name, svg, theme)
         log(f"wrote {output_path} with {theme.name}")
 
     return app.return_value
