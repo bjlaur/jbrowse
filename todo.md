@@ -172,6 +172,7 @@ Keep IPC-specific work separate.
 In progress for the next release.
 
 - [x] The SVG harness defaults to committed fictional media in `tools/fake_cache_data.json` or `.json.zst`.
+- [x] Use a committed fictional 5,000-item fixture library for realistic screenshot coverage.
 - [x] Keep generated `screenshot/` files ignored; add selected documentation images only on request.
 - [x] Keep `--real` as an explicit cache/server mode for local inspection.
 - [x] Add `jbrowse --fake` for interactive fixture browsing without Jellyfin or cache/config writes.
@@ -546,6 +547,12 @@ Japanese - AAC - Stereo
 ```
 
 Robust implementation should use mpv IPC `track-list`.
+
+Subtitle picker follow-up:
+
+- Large subtitle-track lists can outgrow the current picker panel; add a scrollable/viewport-aware picker with a clear position indicator.
+- Preserve the selected track and keyboard navigation while scrolling.
+- Exercise it with the large fake cache as well as real items with many subtitle streams.
 
 ---
 

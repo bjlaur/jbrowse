@@ -58,6 +58,18 @@ Not implemented yet:
 - Accurate mpv IPC-backed Jellyfin playback progress reporting.
 - Static bitrate/transcoding selection.
 
+## Screenshots
+
+These screenshots use the committed fictional fixture library, not a real Jellyfin server or media collection.
+
+![Browser screenshot](docs/screenshots/browser.svg)
+
+![Item information screenshot](docs/screenshots/info.svg)
+
+![Subtitle picker screenshot](docs/screenshots/subtitles.svg)
+
+![mpv log screenshot](docs/screenshots/mpv-log.svg)
+
 ## Requirements
 
 Python dependencies:

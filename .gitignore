@@ -20,6 +20,12 @@ jbrowse.tcss
 # Local screenshot harvests: can contain private media names.
 screenshot/
 
+# Temporary source/output files used while generating the committed fake fixture.
+tools/batches/
+tools/fake_cache_data.json
+tools/fake_cache_data_merged.json
+tools/validation_report.json
+
 # Python local build/cache noise.
 __pycache__/
 *.py[cod]

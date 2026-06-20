@@ -67,6 +67,9 @@ def parse_args() -> argparse.Namespace:
 
 def choose_demo_item(items: list[MediaItem]) -> MediaItem:
     for item in items:
+        if 1 <= len(item.subtitle_tracks) <= 12:
+            return item
+    for item in items:
         if item.subtitle_tracks:
             return item
     return items[0]
@@ -157,6 +160,14 @@ async def export_view(
             app.refresh_message = "refreshing..."
             app.update_bottom_status()
             await settle(app, pilot)
+
+        if view in {"browser", "refreshing"} and app.visible_items:
+            selected = app.visible_items[app.selected_index]
+            expected = [*expected, app.item_text(selected)[:32]]
+        elif view == "info" and demo_item.info_lines:
+            expected = [*expected, demo_item.info_lines[0][:32]]
+        elif view == "subtitles" and demo_item.subtitle_tracks:
+            expected = [*expected, demo_item.subtitle_tracks[0].title]
 
         svg = app.export_screenshot(title=f"{output_path.name} - {theme.name}")
         output_path.write_text(svg, encoding="utf-8")
@@ -335,7 +346,7 @@ async def main_async(args: argparse.Namespace) -> int:
         args.size,
         output / "browser.svg",
         "browser",
-        ["showing", "display:", "Lorem Ipsum", "Dolor Sit Amet", "style:"],
+        ["showing", "display:", "style:"],
     )
 
     result = await export_view(
@@ -360,12 +371,12 @@ async def main_async(args: argparse.Namespace) -> int:
         args.size,
         output / "after-ctrl-x.svg",
         "browser",
-        ["showing", "display:", "Lorem Ipsum", "style:"],
+        ["showing", "display:", "style:"],
     )
 
     captures = [
-        ("info.svg", "info", ["Info", "LOREM IPSUM", "Japanese", "Subtitles"]),
-        ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none", "English SDH"]),
+        ("info.svg", "info", ["Info", "Subtitles"]),
+        ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
         ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+X"]),
         ("mpv-log.svg", "mpv-log", ["mpv log", "mpv --fake-demo", "line one"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
