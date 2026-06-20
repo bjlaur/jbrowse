@@ -119,7 +119,7 @@ This unlocks:
 
 ## 2. Background mpv follow-ups
 
-Likely next release: `0.0.33` should be a small background playback cleanup release, not full mpv IPC.
+Likely next release should be a small background playback cleanup release, not full mpv IPC.
 
 Current behavior:
 
@@ -138,7 +138,7 @@ handle app quit while playback is active
 switch/focus mpv output view
 ```
 
-Suggested `0.0.33` scope:
+Suggested scope:
 
 - Add a simple hotkey to stop active mpv from `jbrowse`.
 - Make quitting while mpv is active deliberate.
@@ -172,7 +172,7 @@ Completed in `0.0.33`.
 
 - [x] The SVG harness defaults to committed fictional media in `tools/fake_cache_data.json` or `.json.zst`.
 - [x] Use a committed fictional 5,000-item fixture library for realistic screenshot coverage.
-- [x] Keep generated `screenshot/` files ignored; add selected documentation images only on request.
+- [x] Keep generated `tools/screenshot/` files ignored; add selected documentation images only on request.
 - [x] Keep `--real` as an explicit cache/server mode for local inspection.
 - [x] Add `jbrowse --fake` for interactive fixture browsing without Jellyfin or cache/config writes.
 - [ ] Add a small Makefile-style release helper that runs the screenshot harness with `--item otter` so the documentation captures can be regenerated consistently each release.
@@ -270,7 +270,7 @@ Implementation notes:
 
 - Keep mutation-capable features behind explicit config/checks.
 - Document mutation-capable endpoints before adding them.
-- Current `0.0.30` state includes playback session reporting; add real guards when broader mutation-capable features are implemented.
+- Current state includes playback session reporting; add real guards when broader mutation-capable features are implemented.
 
 ---
 

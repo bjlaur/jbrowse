@@ -2,15 +2,15 @@
 
 ## 0.0.33 - 2026-06-20
 
-Screenshot fixture work in progress.
+Screenshot fixture and theme gallery release.
 
 Changes:
 
-- Added committed fictional screenshot data in `tools/fake_cache_data.json`, with optional `.json.zst` loading for large fixtures.
+- Added committed fictional screenshot data in `tools/fake_cache_data.json.zst`, with optional plain-JSON loading while generating fixtures.
 - Replaced the small seed fixture with a compressed, fictional 5,000-item library.
 - Made fixture data the default input for `tools/svg_screenshot_poc.py`.
 - Load fixture entries through the normal cache-item decoder, including mock filenames, metadata, and subtitle tracks.
-- Kept `screenshot/` ignored so regenerated output is not committed by default.
+- Kept `tools/screenshot/` ignored so regenerated output is not committed by default.
 - Added explicit `--real` mode for local cache/Jellyfin screenshots; it fetches from Jellyfin only when no local cache is available.
 - Made fixture screenshots start from the first committed theme rather than a local style override.
 - Added `jbrowse --fake` to browse fixture data interactively without Jellyfin or real cache/config writes.
@@ -22,7 +22,7 @@ Changes:
 Testing summary:
 
 - Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
-- Passed JSON validation for `tools/fake_cache_data.json`.
+- Passed compressed fixture loading and validation for `tools/fake_cache_data.json.zst`.
 - Ran `python tools/svg_screenshot_poc.py --playback-smoke` with fixture data.
 - Confirmed browser, theme-cycle, info, subtitles, help, mpv-log, and refreshing SVG checks passed.
 - Ran `python tools/svg_screenshot_poc.py --item otter --all-themes` and generated one verified browser capture for every named theme.

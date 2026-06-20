@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.30
+0.0.33
 ```
 
 Current main script:
@@ -407,7 +407,7 @@ jbrowse.state
 jbrowse.items.json
 jbrowse.items.json.tmp
 jbrowse.tcss
-screenshot/
+tools/screenshot/
 ```
 
 Commit named themes under `themes/` instead.

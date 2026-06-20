@@ -66,8 +66,8 @@ These strings may become valid later for mpv IPC or player config.
 
 ## Near-Term Roadmap
 
-1. Stabilize the promoted 0.0.30 baseline.
-2. Add mpv IPC before making playback reporting more accurate.
+1. Stabilize the promoted 0.0.33 baseline.
+2. Keep server-safety and background-playback follow-ups separate from mpv IPC.
 3. Keep build/packaging polish lower priority unless explicitly requested.
 
 Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.
