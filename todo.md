@@ -74,46 +74,12 @@ Shift+Enter  direct playback
 
 ## 1. mpv IPC
 
-Needed for accurate playback control and playback reporting.
-
-PlaybackManager should eventually own:
-
-```text
-mpv process
-mpv IPC socket
-mpv stdout/stderr log buffer
-current item
-position
-duration
-pause state
-quality
-subtitle/audio selection
-Jellyfin reporting state
-```
-
-Needed commands/properties:
-
-```text
-time-pos
-duration
-pause
-track-list
-pause/play toggle
-stop
-seek
-loadfile replace
-set subtitle track
-set audio track
-```
-
-This unlocks:
-
-- accurate Jellyfin playback reporting
-- Now Playing page
-- pause/stop/seek controls
-- replace-current-playback without restarting the whole app
-- robust subtitle/audio switching
-- static bitrate restart-at-current-position
+- [x] Phase 1: Low-level IPC layer — socket connect, send/recv, property get/set, high-level helpers (`toggle_pause`, `seek_to`, `loadfile_replace`, `set_track`, `stop_via_ipc`). Committed `51bfb24`.
+- [x] Phase 2: Accurate Jellyfin reporting — `position_ticks()` uses IPC `time-pos`, periodic progress reporter (5s), `playback_payload()` reads pause state from IPC. Verified server-side with `--real`. Committed `f37d1ea`.
+- [ ] Phase 4: Pause/stop/seek controls — Space toggle, `,`/`. seek ±10s
+- [ ] Phase 3: Replace-current-playback prompt — confirm overlay + `loadfile_replace`
+- [ ] Phase 5: Now Playing page — live progress bar, track info, Ctrl+N
+- [ ] Phase 6: Static bitrate selection — Ctrl+B cycle quality, `loadfile_replace` at position
 
 ---
 

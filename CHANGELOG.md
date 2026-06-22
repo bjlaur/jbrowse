@@ -1,5 +1,29 @@
 # CHANGELOG.md
 
+## 0.0.34 - 2026-06-22 — IPC feature branch (in progress)
+
+### Phase 1 — Low-level mpv IPC layer
+- `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
+- Socket connect with retry, JSON command/response with request_id matching.
+- Public API: `ipc_get_property`, `ipc_set_property`, `ipc_command`.
+- High-level helpers: `toggle_pause`, `seek_to`, `seek_relative`, `loadfile_replace`, `set_track`, `stop_via_ipc`.
+- `stop_active()` tries IPC `stop` first, falls back to `terminate()`.
+- `--ipc-only` flag on screenshot harness for fast IPC-only smoke testing.
+- `--play-duration` flag controls smoke test play time before position check.
+
+### Phase 2 — Accurate Jellyfin playback reporting
+- `position_ticks()` uses IPC `time-pos` first, falls back to wall-clock.
+- Periodic progress reporter thread sends `/Sessions/Playing/Progress` every 5s via IPC.
+- `playback_payload()` reads `pause` state from IPC instead of hardcoding `False`.
+- Bottom status bar shows live playback state with position: `playing/paused: <title> <MM:SS>`.
+- Verified server-side: all Jellyfin start/progress/stopped reports accepted with accurate positions.
+
+Testing:
+- Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
+- Passed `python tools/svg_screenshot_poc.py --item otter` (8 screenshots).
+- Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
+- Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
+
 ## 0.0.33 - 2026-06-20
 
 Screenshot fixture and theme gallery release.

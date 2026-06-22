@@ -87,9 +87,12 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 ## Current Playback / IPC Status
 
 - mpv IPC is active: `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
-- IPC provides: `ipc_get_property`, `ipc_set_property`, `ipc_command`, `toggle_pause`, `seek_to`, `loadfile_replace`, `set_track`, `stop_via_ipc`.
+- IPC provides: `ipc_get_property`, `ipc_set_property`, `ipc_command`, `toggle_pause`, `seek_to`, `seek_relative`, `loadfile_replace`, `set_track`, `stop_via_ipc`.
 - `stop_active()` tries IPC `stop` first, falls back to `terminate()`.
-- `position_ticks()` still uses wall-clock estimation — Phase 2 will switch to IPC `time-pos`.
-- Jellyfin playback reporting still uses estimated position — Phase 2 will add periodic IPC progress polls.
+- `position_ticks()` uses IPC `time-pos` first, falls back to wall-clock estimation.
+- Periodic progress reporter sends Jellyfin `/Sessions/Playing/Progress` every 5s via IPC.
+- `playback_payload()` reads `pause` state from IPC.
+- Bottom status bar shows live playback state: `playing/paused: <title> <position>`.
 - Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
-- Next: Phase 2 — accurate Jellyfin reporting via IPC `time-pos`.
+- Completed: Phase 1 (IPC layer), Phase 2 (accurate Jellyfin reporting).
+- Next: Phase 4 — pause/stop/seek controls.
