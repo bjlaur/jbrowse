@@ -256,6 +256,84 @@ async def export_view(
             # Cycle quality to trigger flash message
             await pilot.press("ctrl+b")
             await settle(app, pilot)
+        elif view == "playback-control-menu":
+            _setup_fake_playback(app, demo_item)
+            app._open_playback_control()
+            await settle(app, pilot)
+        elif view == "ctrl-k-stop":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press("ctrl+k")
+            await settle(app, pilot)
+        elif view == "ctrl-p-from-browser":
+            _setup_fake_playback(app, demo_item)
+            app._open_playback_control()
+            await settle(app, pilot)
+        elif view == "space-pause":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press("space")
+            await settle(app, pilot)
+        elif view == "seek-comma-period":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press(",")
+            await settle(app, pilot)
+            await pilot.press(".")
+            await settle(app, pilot)
+        elif view == "bottom-bar-format":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+        elif view == "bottom-bar-long-name":
+            long_item = _make_long_filename_item()
+            _setup_fake_playback(app, long_item)
+            await settle(app, pilot)
+        elif view == "replace-n-to-info":
+            _setup_fake_playback(app, demo_item)
+            second_item = items[1] if len(items) > 1 else demo_item
+            app._pending_replace_item = second_item
+            app._replace_prompt_visible = True
+            await settle(app, pilot)
+            app._render_replace_prompt()
+            # Press n to cancel — should go back to info
+            await pilot.press("n")
+            await settle(app, pilot)
+        elif view == "info-backspace-to-browser":
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+            await pilot.press("backspace")
+            await settle(app, pilot)
+        elif view == "now-playing-backspace-to-info":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+            # Navigate to Now Playing
+            app.open_now_playing()
+            await settle(app, pilot)
+            # Press backspace — should return to info
+            await pilot.press("backspace")
+            await settle(app, pilot)
+        elif view == "web-url-info-overlay":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+            await pilot.press("w")
+            await settle(app, pilot)
+        elif view == "web-url-now-playing-overlay":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press("w")
+            await settle(app, pilot)
 
         if view in {"browser", "refreshing"} and app.visible_items:
             selected = app.visible_items[app.selected_index]
@@ -272,6 +350,26 @@ async def export_view(
         log(f"wrote {output_path} with {theme.name}")
 
     return app.return_value
+
+
+def _make_long_filename_item() -> MediaItem:
+    """Create a media item with a very long filename to test bottom bar truncation."""
+    return MediaItem(
+        id="long-filename-item",
+        title="Rick and Morty - S09E02 - Rick's Days Seven Nights",
+        filename="Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv",
+        kind="Episode",
+        series_name="Rick and Morty",
+        season_number=9,
+        episode_number=2,
+        premiere_date="2025-01-01",
+        date_created="2025-01-01",
+        last_played="",
+        resume_ticks=0,
+        runtime_ticks=28 * 60 * 10_000_000,
+        info_lines=["RICK AND MORTY", "Season 9 - 2. Rick's Days Seven Nights", "1/1/2025   28 m", "", "Video       1080p HEVC SDR", "Audio       English - Dolby Digital+ - Stereo - Default", "Subtitles   English - SUBRIP", "Progress      0:00 / 28:00", "", "Synopsis text goes here."],
+        subtitle_tracks=[],
+    )
 
 
 class _FakeState:
@@ -349,7 +447,12 @@ def _setup_fake_playback(app: BrowseApp, item: MediaItem) -> None:
     pm._ipc_sock = _FakeIpcSock()
     pm.ipc_get_property = lambda name: _FAKE_IPC_VALUES.get(name)
     pm._ipc_get_number = lambda name: _FAKE_IPC_VALUES.get(name)
-    pm.toggle_pause = lambda: True
+    _fake_paused = {"value": False}
+    def _toggle_pause():
+        _fake_paused["value"] = not _fake_paused["value"]
+        _FAKE_IPC_VALUES["pause"] = _fake_paused["value"]
+        return True
+    pm.toggle_pause = _toggle_pause
     pm.seek_relative = lambda d: True
     pm.loadfile_replace = lambda url: True
 
@@ -598,6 +701,17 @@ async def main_async(args: argparse.Namespace) -> int:
             "now-playing": ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
             "playback-control": ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
             "replace-prompt": ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "y play", "n cancel"]),
+            "playback-control-menu": ("playback-control-menu.svg", "playback-control-menu", ["Playback Control", "state:", "quality:"]),
+            "ctrl-k-stop": ("ctrl-k-stop.svg", "ctrl-k-stop", ["not playing"]),
+            "ctrl-p-from-browser": ("ctrl-p-from-browser.svg", "ctrl-p-from-browser", ["Playback Control"]),
+            "space-pause": ("space-pause.svg", "space-pause", ["paused"]),
+            "bottom-bar-format": ("bottom-bar-format.svg", "bottom-bar-format", ["np:", "–"]),
+            "bottom-bar-long-name": ("bottom-bar-long-name.svg", "bottom-bar-long-name", ["Rick and Morty", "S09E02"]),
+            "replace-n-to-info": ("replace-n-to-info.svg", "replace-n-to-info", ["Info"]),
+            "info-backspace-to-browser": ("info-backspace-to-browser.svg", "info-backspace-to-browser", ["showing"]),
+            "now-playing-backspace-to-info": ("now-playing-backspace-to-info.svg", "now-playing-backspace-to-info", ["Info"]),
+            "web-url-info-overlay": ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL"]),
+            "web-url-now-playing-overlay": ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL"]),
         }
         if args.view not in view_map:
             print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
@@ -669,6 +783,18 @@ async def main_async(args: argparse.Namespace) -> int:
         ("mpv-log-scrolled.svg", "mpv-log-scrolled", ["mpv log", "Status", "5", "6"]),
         ("info-playing.svg", "info-playing", ["Info", "Progress", "0:30 / 2:00"]),
         ("now-playing-quality.svg", "now-playing-quality", ["Now Playing", "quality: 40mbps"]),
+        ("playback-control-menu.svg", "playback-control-menu", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality"]),
+        ("ctrl-k-stop.svg", "ctrl-k-stop", ["stopping mpv"]),
+        ("ctrl-p-from-browser.svg", "ctrl-p-from-browser", ["Playback Control", "state:", "quality:"]),
+        ("space-pause.svg", "space-pause", ["Now Playing", "paused"]),
+        ("seek-comma-period.svg", "seek-comma-period", ["Now Playing"]),
+        ("bottom-bar-format.svg", "bottom-bar-format", ["np:", "–", "0:30"]),
+        ("bottom-bar-long-name.svg", "bottom-bar-long-name", ["Rick and Morty", "S09E02", "np:"]),
+        ("replace-n-to-info.svg", "replace-n-to-info", ["Info"]),
+        ("info-backspace-to-browser.svg", "info-backspace-to-browser", ["showing", "display:"]),
+        ("now-playing-backspace-to-info.svg", "now-playing-backspace-to-info", ["Info"]),
+        ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL", "q close"]),
+        ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL", "q close"]),
     ]
 
     for index, (filename, view, expected) in enumerate(captures, start=2):

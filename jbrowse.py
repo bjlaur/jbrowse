@@ -1770,9 +1770,8 @@ class BrowseApp(App[object]):
         if typed == "n" or key == "n" or key in {"q", "escape", "backspace"}:
             self._replace_prompt_visible = False
             self._pending_replace_item = None
-            self.page = "browser"
-            self.render_items()
-            self.query.focus()
+            self.page = "info"
+            self.render_info()
             return True
         return False
 
@@ -1789,7 +1788,7 @@ class BrowseApp(App[object]):
     def _apply_quality(self, quality: str) -> None:
         if not self.playback_manager.is_active():
             return
-        # Get current position
+        # Get current position before switching
         ipc_pos = self.playback_manager.ipc_get_property("time-pos") or 0
         item = self.playback_manager.item
         if item is None:
@@ -1798,12 +1797,19 @@ class BrowseApp(App[object]):
         # Build new URL
         url = self._build_stream_url(item, quality)
         if url is None:
-            self.refresh_message = f"quality {quality} failed"
+            self._quality_flash = f"quality {quality} failed"
+            self._quality_flash_until = time.monotonic() + 3.0
             self.update_bottom_status()
             return
 
         # Use loadfile_replace via IPC
         if self.playback_manager.loadfile_replace(url):
+            # Seek back to the saved position after a short delay
+            # to let mpv load the new file
+            def _seek_back():
+                time.sleep(0.5)
+                self.playback_manager.seek_to(ipc_pos)
+            threading.Thread(target=_seek_back, daemon=True).start()
             self._quality_flash = f"quality: {quality}"
         else:
             self._quality_flash = "quality change failed (no IPC?)"
@@ -2738,6 +2744,8 @@ class BrowseApp(App[object]):
         return f"{self.cfg.jellyfin_url}/web/index.html#!/details?id={item.id}"
 
     def render_info(self) -> None:
+        if getattr(self, "_web_url_visible", False):
+            return
         self.focus_overlay()
         info_text = Text()
 
@@ -2756,8 +2764,9 @@ class BrowseApp(App[object]):
                     dur_ticks = int(ipc_dur * TICKS_PER_SECOND) if ipc_dur else self.info_item.runtime_ticks
                     live_progress = f"Progress:   {format_progress(pos_ticks, dur_ticks)}"
                     # Match "Progress" label regardless of padding (add_kv uses left-aligned format)
-                    lines = [live_progress if re.match(r"Progress\s*:", l) else l for l in lines]
-                    if not any(re.match(r"Progress\s*:", l) for l in self.info_item.info_lines):
+                    # add_kv produces "Progress       value" — no colon, just padded label
+                    lines = [live_progress if re.match(r"Progress\s", l) else l for l in lines]
+                    if not any(re.match(r"Progress\s", l) for l in self.info_item.info_lines):
                         lines.insert(3, live_progress)
 
         height = max(8, self.viewport_height() - 4)
@@ -2867,6 +2876,8 @@ class BrowseApp(App[object]):
             self._info_poll_stop = True
 
     def _render_now_playing(self) -> None:
+        if getattr(self, "_web_url_visible", False):
+            return
         self.focus_overlay()
         text = Text()
 
