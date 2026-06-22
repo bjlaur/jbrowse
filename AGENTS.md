@@ -75,7 +75,7 @@ input-ipc-server   # used by PlaybackManager for IPC
 - After each release, add a small `CHANGELOG.md` entry.
 - Each changelog entry should include a very small testing summary and note any important manual test gap.
 - When the user says to commit and/or push, treat that request as a Git-only operation. Do not make further file changes in that step. If a file change is still needed, stop and ask: "I just made my last changes before commit/push. Good to continue?"
-- **Every commit MUST update `AGENTS.md`, `todo.md`, and `CHANGELOG.md`** to reflect the current state. No code commit without corresponding docs updates.
+- **Every commit MUST update `AGENTS.md`, `TODO.md`, and `CHANGELOG.md`** to reflect the current state. No code commit without corresponding docs updates.
 
 ## Near-Term Roadmap
 
@@ -95,6 +95,13 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - `playback_payload()` reads `pause` state from IPC.
 - Bottom status bar shows live playback state: `playing/paused: <title> <position>`.
 - Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
-- Completed: Phase 1 (IPC layer), Phase 2 (accurate Jellyfin reporting), Phase 3 (replace-playback prompt), Phase 4 (pause/stop/seek controls), Phase 5 (Now Playing page).
-- Next: Phase 6 — Static bitrate selection.
+- Completed: All IPC feature phases (1–6) + playback control menu.
+- Phase 1: Low-level IPC socket layer
+- Phase 2: Accurate Jellyfin reporting via IPC time-pos
+- Phase 3: Replace-current-playback prompt with loadfile_replace
+- Phase 4: Pause/stop/seek controls (Space, comma, period)
+- Phase 5: Now Playing page (Ctrl+N) with live progress bar
+- Phase 6: Static bitrate selection (Ctrl+B) with quality cycling
+- Playback control menu: Ctrl+P for global playback overlay
 - Manual release check for 0.0.34: see CHANGELOG.md section "Manual release check" under 0.0.34.
+- Next: Server-side safety guard, audio picker, help text cleanup.

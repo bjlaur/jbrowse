@@ -35,16 +35,31 @@
 - State display: playing/paused, video/audio/subtitle track info from IPC `track-list`.
 - Auto-returns to browser when playback ends while on this page.
 
+### Phase 6 — Static bitrate selection
+- `[playback]` config section: `quality_presets` and `default_quality`.
+- `Ctrl+B` cycles through quality presets (direct → 40mbps → 20mbps → ...).
+- On change: gets `time-pos` via IPC, builds transcoding URL with `MaxStreamingBitrate`, uses `loadfile_replace`.
+- Quality shown in Now Playing page and playback control menu.
+
+### Playback control menu (Ctrl+P)
+- Global overlay accessible from any page.
+- Shows current playback state: title, position/duration, quality.
+- Key actions: Space pause, `,`/`. seek, Ctrl+B quality, Ctrl+K stop, Ctrl+N now playing.
+- `q`/`Escape`/`backspace` closes and returns to browser.
+
 Testing:
 - Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
 - Passed `python tools/svg_screenshot_poc.py --item otter` (8 screenshots).
 - Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
 - Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
+- Help page updated with all new hotkeys (Space, comma, period, Ctrl+B, Ctrl+N, Ctrl+P).
 
 Manual release check:
 - Open app, play an item, press `Ctrl+N` — Now Playing page should show live progress bar.
 - Press `Space` — should toggle pause, bottom bar state should update.
 - Press `,` / `.` — should seek ±10s, position should update in bottom bar.
+- Press `Ctrl+B` — quality should cycle, brief status message shown.
+- Press `Ctrl+P` — playback control menu should appear with all controls.
 - Play an item, navigate to another, press Enter at info — replace prompt should appear.
 - Press `y` — new item should start playing, old Jellyfin session should be stopped.
 - Press `Ctrl+G` during playback — mpv log page should still work.

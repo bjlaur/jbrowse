@@ -1,4 +1,4 @@
-# todo.md
+# TODO.md
 
 ## jbrowse TODO list
 
@@ -24,24 +24,19 @@ Shift+Enter  direct playback
 
 - Avoid `Ctrl+I` for info because terminals treat it as Tab.
 - Avoid F2 for info; it was already rejected.
-- **Every commit MUST update `AGENTS.md`, `todo.md`, and `CHANGELOG.md`** to reflect the current state. No code commit without corresponding docs updates.
+- **Every commit MUST update `AGENTS.md`, `TODO.md`, and `CHANGELOG.md`** to reflect the current state. No code commit without corresponding docs updates.
 
 ---
 
-## Active: IPC Features (branch: `ipc-features`)
+## Active: IPC Features (branch: `ipc-features`) — ALL COMPLETE
 
-### Phase 5: Now Playing page
-- Live playback state page with progress bar, track info
-- Hotkey: `Ctrl+N`
-- Poll IPC (`time-pos`, `duration`, `pause`, `track-list`) every 1s
-- Backspace returns to browser, playback continues
-- Auto-return to browser when playback ends on this page
-
-### Phase 6: Static bitrate selection
-- `[playback]` config section with quality presets (direct, 40Mbps, 20Mbps, etc.)
-- Hotkey: `Ctrl+B` to cycle quality
-- On change: get `time-pos` via IPC, rebuild URL with `MaxStreamingBitrate`, `loadfile_replace`
-- Show current quality in bottom status bar
+- [x] Phase 1: Low-level mpv IPC layer
+- [x] Phase 2: Accurate Jellyfin playback reporting via IPC
+- [x] Phase 3: Replace-current-playback prompt
+- [x] Phase 4: Pause/stop/seek controls
+- [x] Phase 5: Now Playing page (Ctrl+N)
+- [x] Phase 6: Static bitrate selection (Ctrl+B)
+- [x] Playback control menu (Ctrl+P)
 
 ---
 
@@ -91,3 +86,6 @@ Shift+Enter  direct playback
 - Phase 2: Accurate Jellyfin playback reporting via IPC (committed `f37d1ea`)
 - Phase 3: Replace-current-playback prompt (committed `7b391b0`)
 - Phase 4: Pause/stop/seek controls via IPC (committed `2568d1e`)
+- Phase 5: Now Playing page (committed in `c3b1bff`)
+- Phase 6: Static bitrate selection (committed in `c3b1bff`)
+- Playback control menu Ctrl+P (committed in `c3b1bff`)
