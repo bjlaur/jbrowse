@@ -1,59 +1,35 @@
 # Manual Re-test Checklist — 0.0.34
 
-These items were fixed after initial manual testing. All need real-keyboard verification.
+## Legend
 
-## How to use
-
-- [ ] = not tested yet
 - [x] = passed
-- [ ] **FAIL** = something is wrong, add a note
+- [ ] = not tested yet
+- **FAIL** = something is wrong, add a note
 
----
+## Testing
 
-## Playback Controls
-
-- [ ] Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed).
-- [ ] Press `Space` — should toggle pause, bottom bar state should update.
-- [ ] Press `,` / `.` — should seek ±10s, position should update in bottom bar.
-- [ ] Press `Ctrl+B` — quality should cycle, 3-second flash message shown on Now Playing page.
-- [ ] Press `Ctrl+P` — playback control menu should appear with all controls (not Textual command palette).
-- [ ] Press `Ctrl+K` — should stop playback via IPC.
-
-## Web URL Overlay
-
-- [ ] Press `w` on info page — Jellyfin web URL overlay should appear. Any key closes it.
-- [ ] Press `w` on Now Playing page — overlay should appear and **stay visible for 3+ seconds** without disappearing.
-
-## Replace Prompt
-
-- [ ] Play an item, navigate to another, press Enter at info — replace prompt should appear.
-- [ ] Replace prompt shows "Already playing" / "Play this instead?" / "y play  n cancel" wording.
-- [ ] Press `y` — new item should start playing, old Jellyfin session should be stopped.
-- [ ] Press `n` — cancel, return to browser.
-
-## Bottom Bar
-
-- [ ] Bottom bar shows `np: <title> – <MM:SS>` format during playback (e.g. `np: Rick and Morty – S09E02 – 2:34`).
-- [ ] Long filenames truncated to ~40 chars of show name + SxxExx.
-
-## Info Page Live Progress
-
-- [ ] While playing, open info page for the playing item — Progress line shows live IPC position (not cached Jellyfin data).
-- [ ] Progress line **auto-updates** without moving cursor or pressing keys.
-- [ ] Only **one** Progress line visible (no duplicate).
-
-## Navigation
-
-- [ ] Open info page for playing item, press q/backspace → returns to browser.
-- [ ] Open info → play → backspace from Now Playing → returns to **info page** (not browser).
-
-## MpV Log
-
-- [ ] Press `Ctrl+G` during playback — mpv log page should still work.
-- [ ] MpV log shows line numbers next to each line.
-- [ ] MpV log shows scroll position indicator (█░ bar + percentage) when content is scrollable.
-
----
+| Test | Harness | Manual |
+|------|---------|--------|
+| Open app, play an item — Now Playing page auto-shows | [x] | [ ] |
+| Press `Space` — toggles pause, bottom bar updates | [ ] | [ ] |
+| Press `,` / `.` — seeks ±10s, position updates in bottom bar | [ ] | [ ] |
+| Press `Ctrl+B` — quality cycles, 3-second flash on Now Playing page | [x] | [ ] |
+| Press `Ctrl+P` — playback control menu appears (not Textual palette) | [ ] | [ ] |
+| Press `Ctrl+K` — stops playback via IPC | [ ] | [ ] |
+| Press `w` on info page — web URL overlay appears, any key closes | [x] | [ ] |
+| Press `w` on Now Playing page — overlay stays visible 3+ seconds | [ ] | [ ] |
+| Replace prompt shows "Already playing" / "Play this instead?" / "y play" | [x] | [ ] |
+| Press `y` on replace — new item plays, old session stops | [ ] | [ ] |
+| Press `n` on replace — cancel, returns to browser | [ ] | [ ] |
+| Bottom bar shows `np: <title> – <MM:SS>` format | [ ] | [ ] |
+| Long filenames truncated to ~40 chars + SxxExx | [ ] | [ ] |
+| Info page Progress shows live IPC position (not cached) | [x] | [ ] |
+| Info page Progress auto-updates without cursor movement | [ ] | [ ] |
+| Only one Progress line visible (no duplicate) | [x] | [ ] |
+| Info page backspace → returns to browser | [ ] | [ ] |
+| Info → play → backspace from Now Playing → returns to info page | [ ] | [ ] |
+| Ctrl+G — mpv log works with line numbers | [x] | [ ] |
+| MpV log scroll position indicator (█░ bar + %) when scrollable | [x] | [ ] |
 
 ## Notes
 
