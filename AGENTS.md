@@ -52,14 +52,18 @@ Useful lightweight checks:
 ./jbrowse.py --print-style-path
 ```
 
-Avoid accidentally adding these before their planned feature work:
+~~Avoid accidentally adding these before their planned feature work~~ — mpv IPC is now active:
 
 ```text
-input-ipc-server
-[player]
+input-ipc-server   # used by PlaybackManager for IPC
+[player]           # still deferred; no player config section yet
 ```
 
-These strings may become valid later for mpv IPC or player config.
+## Screenshots
+
+- When a change adds or modifies a visible UI element, add or update a screenshot capture in `tools/svg_screenshot_poc.py` so the theme gallery reflects the new state.
+- Do not regenerate the full theme gallery on every commit — only when the UI actually changes.
+- The `--real-mpv` smoke test is a regression test only for IPC. It is not part of the normal smoke suite and requires `--real` plus a logged-in Jellyfin cache.
 
 ## Release Notes And Roadmap Hygiene
 

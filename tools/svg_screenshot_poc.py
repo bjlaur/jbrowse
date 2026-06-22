@@ -64,6 +64,11 @@ def parse_args() -> argparse.Namespace:
         help="use the local config/cache and Jellyfin server instead of fictional fixtures",
     )
     parser.add_argument(
+        "--real-mpv",
+        action="store_true",
+        help="launch a real mpv instance via PlaybackManager and verify IPC (requires --real and a Jellyfin cache)",
+    )
+    parser.add_argument(
         "--item",
         default="",
         help="case-insensitive title, filename, or series substring to feature in captures",
@@ -363,6 +368,40 @@ def run_playback_smoke(cfg) -> dict:
     return result
 
 
+def run_real_mpv_smoke(cfg, client, item) -> None:
+    """Launch real mpv via PlaybackManager and verify it starts cleanly."""
+    log("running real mpv smoke test")
+
+    if client.auth is None:
+        log("logging in to Jellyfin for real mpv smoke")
+        client.login()
+
+    manager = PlaybackManager(client)
+    error = manager.start_background(item)
+    if error:
+        raise RuntimeError(f"real mpv failed to start: {error}")
+    if not manager.is_active():
+        raise RuntimeError("real mpv did not start in the background")
+
+    log("real mpv started; waiting 3s for playback")
+    time.sleep(3)
+
+    snapshot = manager.snapshot()
+    log(f"real mpv snapshot: active={snapshot['active']}, title={snapshot['title']}")
+    log(f"real mpv output (first 200 chars): {snapshot['output'][:200]!r}")
+
+    if not manager.stop_active():
+        raise RuntimeError("real mpv did not accept stop request")
+
+    deadline = time.monotonic() + 5
+    while manager.is_active() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if manager.is_active():
+        raise RuntimeError("real mpv did not finish after stop")
+
+    log("real mpv smoke passed")
+
+
 async def main_async(args: argparse.Namespace) -> int:
     if args.real:
         cfg, client, items = real_demo_data()
@@ -471,6 +510,11 @@ async def main_async(args: argparse.Namespace) -> int:
 
     if args.playback_smoke:
         run_playback_smoke(cfg)
+
+    if args.real_mpv:
+        if not args.real:
+            raise RuntimeError("--real-mpv requires --real (needs real Jellyfin cache and server)")
+        run_real_mpv_smoke(cfg, client, demo_item)
 
     return 0
 
