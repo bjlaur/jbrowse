@@ -103,6 +103,8 @@ Before every release, run through this entire list. Do not skip steps.
 - [ ] Test playback control menu (Ctrl+P) — all controls work
 - [ ] Test quality cycle (Ctrl+B) — status message shown
 
+**Note**: The `--ipc-only --real` test requires a real Jellyfin server and cache. For quick IPC regression checks during development, use `--play-duration 0.5` (500ms) — just enough to verify IPC connects and reads a position. Save the full 5s+ runs for release testing.
+
 ### Full Theme Gallery (major releases only)
 - [ ] `python tools/svg_screenshot_poc.py --item otter --all-themes`
 - [ ] Verify all themes render without errors in `docs/themes/`

@@ -71,8 +71,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--play-duration",
         type=float,
-        default=3.0,
-        help="seconds to let mpv play before checking IPC position (default: 3.0)",
+        default=0.5,
+        help="seconds to let mpv play before checking IPC position (default: 0.5). Use 5.0+ for full release smoke tests.",
     )
     parser.add_argument(
         "--item",
