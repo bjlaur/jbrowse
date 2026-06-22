@@ -1469,7 +1469,8 @@ class BrowseApp(App[object]):
         self.refreshing = False
         self.refresh_message = ""
         self.refresh_error = ""
-        self._status_message_timer: Optional[ReferenceType] = None
+        self._replace_prompt_visible = False
+        self._pending_replace_item: Optional[MediaItem] = None
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.refresh_thread: Optional[threading.Thread] = None
         now = time.monotonic()
@@ -1644,16 +1645,101 @@ class BrowseApp(App[object]):
         self.start_playback(self.info_item)
 
     def start_playback(self, item: MediaItem) -> None:
+        # If something is already playing, show replace confirmation
+        if self.playback_manager.is_active():
+            self._pending_replace_item = item
+            self._show_replace_prompt()
+            return
+
+        self._do_start_playback(item)
+
+    def _do_start_playback(self, item: MediaItem) -> None:
         self.save_ui_state()
-        error = self.playback_manager.start_background(item, self.subtitle_choice(item))
-        if error:
-            self.refresh_error = error
+
+        # If something is playing, use IPC loadfile_replace
+        if self.playback_manager.is_active() and self.playback_manager.ipc_socket_path is not None:
+            url = self.client.stream_url(item)
+            args, _subtitle_track = build_mpv_command(self.client.cfg, item, url, self.subtitle_choice(item))
+            # Extract just the URL for loadfile
+            if self.playback_manager.loadfile_replace(url):
+                # Update the manager's item reference
+                with self.playback_manager.lock:
+                    self.playback_manager.item = item
+                    self.playback_manager.play_session_id = secrets.token_hex(16)
+                self.playback_manager.report(
+                    "start", self.client.report_playback_started, item, item.resume_ticks
+                )
+                self.refresh_error = ""
+                self.playback_was_active = True
+            else:
+                self.refresh_error = "loadfile_replace failed"
         else:
-            self.refresh_error = ""
-            self.playback_was_active = True
+            error = self.playback_manager.start_background(item, self.subtitle_choice(item))
+            if error:
+                self.refresh_error = error
+            else:
+                self.refresh_error = ""
+                self.playback_was_active = True
 
         self.update_bottom_status()
         self.render_items()
+
+    def _show_replace_prompt(self) -> None:
+        self.focus_overlay()
+        self._replace_prompt_visible = True
+        self._render_replace_prompt()
+
+    def _render_replace_prompt(self) -> None:
+        text = Text()
+        text.append("Replace playback?\n\n", style="bold")
+
+        current_title = ""
+        if self.playback_manager.item is not None:
+            current_title = self.playback_manager.item.title
+        text.append(f"Currently playing:\n", style="bold")
+        text.append(f"{current_title}\n\n")
+
+        pending = getattr(self, "_pending_replace_item", None)
+        new_title = pending.title if pending is not None else "?"
+        text.append(f"Replace with:\n", style="bold")
+        text.append(f"{new_title}\n\n")
+
+        text.append("y replace | n cancel", style="dim")
+
+        self.listbox.update(self.overlay_panel(text, "Replace Playback"))
+
+    def _handle_replace_key(self, key: str) -> bool:
+        """Handle key presses on the replace prompt. Returns True if handled."""
+        typed = getattr(key, "character", None) if hasattr(key, "character") else None
+        if typed == "y" or key == "y":
+            pending = getattr(self, "_pending_replace_item", None)
+            if pending is not None:
+                # Stop old session, start new
+                old_item = self.playback_manager.item
+                if old_item is not None:
+                    # Send stopped report for old item
+                    final_pos = self.playback_manager.position_ticks()
+                    try:
+                        self.playback_manager.report(
+                            "stopped",
+                            self.client.report_playback_stopped,
+                            old_item,
+                            final_pos,
+                        )
+                    except Exception:
+                        pass
+                self._do_start_playback(pending)
+            self._replace_prompt_visible = False
+            self._pending_replace_item = None
+            return True
+        if typed == "n" or key == "n" or key in {"q", "escape", "backspace"}:
+            self._replace_prompt_visible = False
+            self._pending_replace_item = None
+            self.page = "browser"
+            self.render_items()
+            self.query.focus()
+            return True
+        return False
 
     def on_key(self, event) -> None:
         self.note_activity()
@@ -1714,6 +1800,11 @@ class BrowseApp(App[object]):
                 self.refresh_message = "seek failed (no IPC?)"
             self.update_bottom_status()
             event.stop()
+            return
+
+        if self._replace_prompt_visible:
+            if self._handle_replace_key(event.key):
+                event.stop()
             return
 
         if event.key == "ctrl+shift+x":
