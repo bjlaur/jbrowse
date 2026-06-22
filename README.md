@@ -231,7 +231,8 @@ Space        pause/play toggle
 Ctrl+B       cycle quality
 Ctrl+K       stop playback
 Ctrl+N       now playing page
-q            close menu
+w            show Jellyfin web URL
+q/esc/back   close menu
 ```
 
 ### Info page
@@ -240,6 +241,7 @@ q            close menu
 q/backspace  close info
 Enter        play shown item
 s            open subtitle picker
+w            show Jellyfin web URL for this item
 Ctrl+R       refresh Jellyfin list in the background
 ←/→          previous/next episode
 [/]          previous/next season
@@ -256,13 +258,16 @@ Enter        apply
 q/backspace  cancel
 ```
 
-### Now Playing page (Ctrl+N)
+### Now Playing page
+
+Auto-opens when playback starts. Truncated title shown in bottom bar (e.g. `Rick and Morty - S09E02`).
 
 ```text
 q/backspace  return to browser
 Space        pause/play toggle
 , / .        seek -10s / +10s
 s            open subtitle picker
+w            show Jellyfin web URL for this item
 Ctrl+G       show mpv log
 ```
 

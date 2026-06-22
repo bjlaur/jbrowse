@@ -42,6 +42,11 @@ Shift+Enter  direct playback
 
 ## Pending (after IPC features)
 
+### Bottom bar progress bar
+- After manual review: consider adding a visual `█░` progress bar to the bottom status bar during playback (not just text "playing: Title 1:23")
+- Now Playing page already has a full bar; this would be a compact version for the browser bottom bar
+- Defer until after manual testing confirms it's useful
+
 ### Server-side safety guard
 - Keep track of code paths that can mutate Jellyfin/server state
 - Playback session reporting is the only currently allowed server mutation
@@ -89,3 +94,8 @@ Shift+Enter  direct playback
 - Phase 5: Now Playing page (committed in `c3b1bff`)
 - Phase 6: Static bitrate selection (committed in `c3b1bff`)
 - Playback control menu Ctrl+P (committed in `c3b1bff`)
+- Auto-show Now Playing on playback start (committed in `f08d8cb`)
+- Truncated bottom bar titles (committed in `f08d8cb`)
+- Web URL hotkey `w` on info/now playing (committed in `f08d8cb`)
+- Live IPC progress on info page (committed in `f08d8cb`)
+- Screenshot harness: 12 captures, `--view` flag, fake playback (committed in `3297e68`, `f08d8cb`)
