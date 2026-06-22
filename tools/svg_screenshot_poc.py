@@ -230,6 +230,10 @@ async def export_view(
             app._replace_prompt_visible = True
             await settle(app, pilot)
             app._render_replace_prompt()  # render after settle so it's not overwritten
+        elif view == "web-url":
+            app.info_item = demo_item
+            await settle(app, pilot)
+            app._show_web_url()
 
         if view in {"browser", "refreshing"} and app.visible_items:
             selected = app.visible_items[app.selected_index]
@@ -634,6 +638,7 @@ async def main_async(args: argparse.Namespace) -> int:
         ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
         ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
         ("replace-prompt.svg", "replace-prompt", ["Replace playback?", "Currently playing", "Replace with:", "y replace", "n cancel"]),
+        ("web-url.svg", "web-url", ["Jellyfin Web URL", "example.invalid", "details?id=", "q close"]),
     ]
 
     for index, (filename, view, expected) in enumerate(captures, start=2):

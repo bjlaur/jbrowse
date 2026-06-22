@@ -1492,6 +1492,7 @@ class BrowseApp(App[object]):
         self.now_playing_scroll = ui_state.now_playing_scroll
         self._quality_index = 0
         self._playback_control_visible = False
+        self._web_url_visible = False
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.refresh_thread: Optional[threading.Thread] = None
         now = time.monotonic()
@@ -1625,7 +1626,11 @@ class BrowseApp(App[object]):
             parts.append(prefix)
         playback = self.playback_manager.snapshot()
         if playback["active"]:
-            title = playback["title"] or "mpv"
+            pm_item = self.playback_manager.item
+            if pm_item is not None:
+                title = self._format_title_for_bar(pm_item)
+            else:
+                title = playback["title"] or "mpv"
             # Add live position from IPC if available
             ipc_pos = self.playback_manager.ipc_get_property("time-pos")
             ipc_pause = self.playback_manager.ipc_get_property("pause")
@@ -1677,6 +1682,7 @@ class BrowseApp(App[object]):
 
     def _do_start_playback(self, item: MediaItem) -> None:
         self.save_ui_state()
+        self._now_playing_poll_stop = False
 
         # If something is playing, use IPC loadfile_replace
         if self.playback_manager.is_active() and self.playback_manager.ipc_socket_path is not None:
@@ -1703,8 +1709,12 @@ class BrowseApp(App[object]):
                 self.refresh_error = ""
                 self.playback_was_active = True
 
-        self.update_bottom_status()
-        self.render_items()
+        # Auto-open Now Playing page when playback starts
+        if not self.refresh_error:
+            self.open_now_playing()
+        else:
+            self.update_bottom_status()
+            self.render_items()
 
     def _show_replace_prompt(self) -> None:
         self.focus_overlay()
@@ -1830,6 +1840,26 @@ class BrowseApp(App[object]):
         idx = self._quality_index % len(presets)
         return presets[idx]
 
+    def _show_web_url(self) -> None:
+        """Show the Jellyfin web URL for the current info/playing item."""
+        item = self.info_item
+        if item is None:
+            item = self.playback_manager.item
+        if item is None:
+            return
+        url = self._web_url(item)
+        self._web_url_visible = True
+        try:
+            self.focus_overlay()
+        except Exception:
+            pass
+        text = Text()
+        text.append("Jellyfin Web URL\n\n", style="bold")
+        text.append(f"{item.title}\n\n", style="dim")
+        text.append(url, style="bold")
+        text.append("\n\nq close", style="dim")
+        self.listbox.update(self.overlay_panel(text, "Web URL"))
+
     def _open_playback_control(self) -> None:
         self._playback_control_visible = True
         self._render_playback_control()
@@ -1907,6 +1937,12 @@ class BrowseApp(App[object]):
                 return
             self.save_ui_state()
             self.exit(None)
+            event.stop()
+            return
+
+        if getattr(self, "_web_url_visible", False):
+            self._web_url_visible = False
+            self.render_items()
             event.stop()
             return
 
@@ -2026,6 +2062,10 @@ class BrowseApp(App[object]):
                 self.open_mpv_log()
                 event.stop()
                 return
+            if typed == "w" or event.key == "w":
+                self._show_web_url()
+                event.stop()
+                return
             if event.key in {"up", "down", "pageup", "pagedown", "home", "end"}:
                 self._scroll_now_playing(event.key)
                 event.stop()
@@ -2076,6 +2116,11 @@ class BrowseApp(App[object]):
 
             if typed == "s" or event.key == "s":
                 self.open_subtitle_picker()
+                event.stop()
+                return
+
+            if typed == "w" or event.key == "w":
+                self._show_web_url()
                 event.stop()
                 return
 
@@ -2652,6 +2697,29 @@ class BrowseApp(App[object]):
         self.update_subtitle_status()
         self.listbox.update(self.overlay_panel(text, "Subtitles"))
 
+    def _format_title_for_bar(self, item: MediaItem) -> str:
+        """Truncate title for bottom/status bar: ~10 chars of show name + SxxExx."""
+        import re
+        title = item.title
+        se_match = re.search(r'S(\d+)E(\d+)', title)
+        se_str = ""
+        if se_match:
+            se_str = f"S{se_match.group(1)}E{se_match.group(2)}"
+        if item.series_name:
+            name = item.series_name
+        else:
+            parts = title.split(" - ")
+            name = parts[0] if parts else title
+        if len(name) > 10:
+            name = name[:10] + "…"
+        if se_str:
+            return f"{name} - {se_str}"
+        return name
+
+    def _web_url(self, item: MediaItem) -> str:
+        """Build the Jellyfin web UI URL for an item."""
+        return f"{self.cfg.jellyfin_url}/web/index.html#!/details?id={item.id}"
+
     def render_info(self) -> None:
         self.focus_overlay()
         info_text = Text()
@@ -2659,7 +2727,20 @@ class BrowseApp(App[object]):
         if self.info_item is None:
             lines = ["No selected item."]
         else:
-            lines = self.info_item.info_lines
+            lines = list(self.info_item.info_lines)
+            # If this is the currently playing item, inject live IPC progress
+            pm_item = self.playback_manager.item
+            if (pm_item is not None and self.info_item.id == pm_item.id
+                    and self.playback_manager.is_active()):
+                ipc_pos = self.playback_manager.ipc_get_property("time-pos")
+                ipc_dur = self.playback_manager.ipc_get_property("duration")
+                if ipc_pos is not None:
+                    pos_ticks = int(ipc_pos * TICKS_PER_SECOND)
+                    dur_ticks = int(ipc_dur * TICKS_PER_SECOND) if ipc_dur else self.info_item.runtime_ticks
+                    live_progress = f"Progress:   {format_progress(pos_ticks, dur_ticks)}"
+                    lines = [live_progress if l.startswith("Progress:") else l for l in lines]
+                    if not any(l.startswith("Progress:") for l in self.info_item.info_lines):
+                        lines.insert(3, live_progress)
 
         height = max(8, self.viewport_height() - 4)
         max_scroll = max(0, len(lines) - height)
@@ -2667,7 +2748,7 @@ class BrowseApp(App[object]):
 
         shown = lines[self.info_scroll : self.info_scroll + height]
 
-        info_text.append("q/backspace close | Enter play | s subtitles | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
+        info_text.append("q/backspace close | Enter play | s subtitles | w web | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
         info_text.append("\n\n")
 
         for line_number, line in enumerate(shown):
@@ -2751,7 +2832,7 @@ class BrowseApp(App[object]):
 
         # Header
         text.append("Now Playing\n", style="bold")
-        text.append("q/backspace browser | Space pause | ,/. seek | s subtitles | Ctrl+G mpv log\n")
+        text.append("q/backspace browser | Space pause | ,/. seek | s subtitles | w web | Ctrl+G mpv log\n")
         text.append("\n")
 
         if not playback["active"] or pm_item is None:
@@ -2759,8 +2840,8 @@ class BrowseApp(App[object]):
             self.listbox.update(self.overlay_panel(text, "Now Playing"))
             return
 
-        # Title
-        text.append(f"{pm_item.title}\n", style="bold")
+        # Title (truncated)
+        text.append(f"{self._format_title_for_bar(pm_item)}\n", style="bold")
 
         # Progress bar
         ipc_pos = self.playback_manager.ipc_get_property("time-pos") or 0
@@ -2918,7 +2999,7 @@ class BrowseApp(App[object]):
         help_text.append("/pattern     regex search\n")
         help_text.append("Ctrl+T       toggle title/filename display and search\n")
         help_text.append("Ctrl+O       toggle ascending/descending sort\n")
-        help_text.append("Info: q/backspace close, Enter play, s subtitles, ←/→ episode, [/] season\n")
+        help_text.append("Info: q/backspace close, Enter play, s subtitles, w web, ←/→ episode, [/] season\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
         help_text.append("Ctrl+G       show mpv output\n")
         help_text.append("Ctrl+K       stop active mpv playback\n")
