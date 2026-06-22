@@ -265,6 +265,8 @@ def fixture_cfg() -> Config:
         style_path=None,
         mpv_cmd=["mpv", "$url"],
         refresh_interval_minutes=0,
+        quality_presets=["direct", "40mbps", "20mbps", "12mbps", "8mbps", "4mbps", "2mbps"],
+        default_quality="direct",
     )
 
 
