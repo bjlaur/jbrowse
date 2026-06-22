@@ -95,5 +95,6 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - `playback_payload()` reads `pause` state from IPC.
 - Bottom status bar shows live playback state: `playing/paused: <title> <position>`.
 - Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
-- Completed: Phase 1 (IPC layer), Phase 2 (accurate Jellyfin reporting), Phase 3 (replace-playback prompt), Phase 4 (pause/stop/seek controls).
-- Next: Phase 5 — Now Playing page.
+- Completed: Phase 1 (IPC layer), Phase 2 (accurate Jellyfin reporting), Phase 3 (replace-playback prompt), Phase 4 (pause/stop/seek controls), Phase 5 (Now Playing page).
+- Next: Phase 6 — Static bitrate selection.
+- Manual release check for 0.0.34: see CHANGELOG.md section "Manual release check" under 0.0.34.

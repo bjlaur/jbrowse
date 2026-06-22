@@ -18,11 +18,37 @@
 - Bottom status bar shows live playback state with position: `playing/paused: <title> <MM:SS>`.
 - Verified server-side: all Jellyfin start/progress/stopped reports accepted with accurate positions.
 
+### Phase 3 — Replace-current-playback prompt
+- Confirmation overlay when trying to play while something is already active.
+- Shows current item and replacement item, `y replace | n cancel`.
+- On confirm: stops old Jellyfin session, uses IPC `loadfile_replace` for seamless transition.
+
+### Phase 4 — Pause/stop/seek controls
+- `Space` toggles pause/play via IPC.
+- `,` / `.` seek -10s / +10s via IPC `seek_relative`.
+- `Ctrl+K` already existed for stop (unchanged).
+- Help page updated with new playback controls.
+
+### Phase 5 — Now Playing page
+- New `now_playing` page, opened with `Ctrl+N`.
+- Progress bar with `█░` blocks, position/duration from IPC.
+- State display: playing/paused, video/audio/subtitle track info from IPC `track-list`.
+- Auto-returns to browser when playback ends while on this page.
+
 Testing:
 - Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
 - Passed `python tools/svg_screenshot_poc.py --item otter` (8 screenshots).
 - Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
 - Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
+
+Manual release check:
+- Open app, play an item, press `Ctrl+N` — Now Playing page should show live progress bar.
+- Press `Space` — should toggle pause, bottom bar state should update.
+- Press `,` / `.` — should seek ±10s, position should update in bottom bar.
+- Play an item, navigate to another, press Enter at info — replace prompt should appear.
+- Press `y` — new item should start playing, old Jellyfin session should be stopped.
+- Press `Ctrl+G` during playback — mpv log page should still work.
+- Press `Ctrl+K` — should stop playback via IPC.
 
 ## 0.0.33 - 2026-06-20
 
