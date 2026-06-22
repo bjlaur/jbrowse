@@ -50,10 +50,23 @@ Shift+Enter  direct playback
 - [x] Web URL overlay: poll timer skips re-rendering when overlay is visible
 - [x] Info page Progress: fixed duplicate line (regex match), added 1s auto-update poll
 - [x] Ctrl+B quality flash: 3-second on-page message when quality changes on Now Playing page
+- [x] Ctrl+B seek back: after loadfile_replace, seeks to saved position via background thread
+- [x] Replace prompt `n`: returns to info page instead of browser
+- [x] Web URL overlay: render_info() and _render_now_playing() guard on _web_url_visible
+- [x] Info page Progress regex: fixed from `Progress\s*:` to `Progress\s` (add_kv has no colon)
+- [x] Harness: 28 captures, all pass; new views for all fixed items
+- [x] Created ipc-retest-checklist.md with pass/fail status from manual testing
+- [x] Created claude-didn't-listen.md report documenting missed harness tests
 
 ---
 
 ## Pending (after IPC features)
+
+### README screenshot update
+- Next time we do a README fixup, choose the best 10 screenshots from the 28 harness captures
+- Current 8 screenshots in `docs/screenshots/` are all still there (browser, after-ctrl-x, help, info, mpv-log, refreshing, search, subtitles)
+- New candidates to consider: now-playing, playback-control, replace-prompt, mpv-log-scrolled, info-playing, bottom-bar-format, web-url, ctrl-k-stop, space-pause, seek-comma-period, etc.
+- Update README to reference the selected screenshots
 
 ### Bottom bar progress bar
 - After manual review: consider adding a visual `█░` progress bar to the bottom status bar during playback (not just text "playing: Title 1:23")

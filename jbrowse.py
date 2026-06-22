@@ -1746,7 +1746,7 @@ class BrowseApp(App[object]):
     def _handle_replace_key(self, key: str) -> bool:
         """Handle key presses on the replace prompt. Returns True if handled."""
         typed = getattr(key, "character", None) if hasattr(key, "character") else None
-        if typed == "y" or key == "y":
+        if typed == "y" or key == "y" or key == "enter":
             pending = getattr(self, "_pending_replace_item", None)
             if pending is not None:
                 # Stop old session, start new
@@ -2871,6 +2871,7 @@ class BrowseApp(App[object]):
                 and self.info_item.id == pm_item.id
                 and self.playback_manager.is_active()):
             self.render_info()
+            self.refresh()
             self.set_timer(1.0, self._poll_info)
         else:
             self._info_poll_stop = True

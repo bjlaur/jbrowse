@@ -60,12 +60,12 @@
 
 Testing:
 - Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
-- Passed `python tools/svg_screenshot_poc.py --item otter` (15 screenshots, all pass).
+- Passed `python tools/svg_screenshot_poc.py --item otter` (28 screenshots, all pass).
 - Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
 - Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
 - Help page updated with all new hotkeys (Space, comma, period, Ctrl+B, Ctrl+N, Ctrl+P).
-- New harness captures: mpv-log-scrolled (line numbers), info-playing (live progress), now-playing-quality (quality cycle).
-- Updated screenshot harness: replace-prompt capture expects new wording; FixtureClient has state.deviceid for quality cycling.
+- New harness captures: mpv-log-scrolled, info-playing, now-playing-quality, playback-control-menu, ctrl-k-stop, ctrl-p-from-browser, space-pause, seek-comma-period, bottom-bar-format, bottom-bar-long-name, replace-n-to-info, info-backspace-to-browser, now-playing-backspace-to-info, web-url-info-overlay, web-url-now-playing-overlay.
+- Updated screenshot harness: 28 total captures; FixtureClient has state.deviceid; fake toggle_pause toggles state.
 
 Manual release check:
 - Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed).

@@ -42,3 +42,93 @@
 **Still failing, needs investigation:** 5 (Ctrl+P Textual palette), 15 (info Progress auto-update), 20 (scroll bar text format)
 
 **Harness-only (can't test manually yet):** All harness captures pass (28/28).
+
+---
+
+## New Re-test Requests
+
+### Replace Prompt
+
+- [ ] Press Enter on replace prompt → starts playback (same as `y`)
+- [ ] Press Backspace on replace prompt → cancels and returns to info page
+- [ ] Press `n` on replace prompt → cancels and returns to info page (not browser)
+- [ ] Press `y` on replace prompt → starts new playback, old session stops
+- [ ] Replace prompt shows "Already playing" / "Play this instead?" / "y play  n cancel"
+
+**Notes:**
+
+---
+
+### Info Page Live Progress
+
+- [ ] Open info page for a currently playing item → Progress line shows live IPC position
+- [ ] Progress line updates automatically every second without moving cursor
+- [ ] Only one Progress line visible (no duplicate)
+- [ ] Progress line shows correct position from IPC (e.g. `Progress: 2:34 / 22:10`)
+
+**Notes:**
+
+---
+
+### Web URL Overlay
+
+- [ ] Press `w` on info page → overlay shows Jellyfin web URL
+- [ ] Press `w` on info page → overlay stays visible (not overwritten by IPC refresh)
+- [ ] Press any key → overlay closes
+- [ ] Press `w` on Now Playing page → overlay shows Jellyfin web URL
+- [ ] Press `w` on Now Playing page → overlay stays visible for 3+ seconds
+
+**Notes:**
+
+---
+
+### Playback Controls
+
+- [ ] Press `Space` → toggles pause/play, bottom bar updates
+- [ ] Press `,` → seeks -10s, position updates in bottom bar
+- [ ] Press `.` → seeks +10s, position updates in bottom bar
+- [ ] Press `Ctrl+B` → quality cycles, 3-second flash message on Now Playing page
+- [ ] Press `Ctrl+B` → video does NOT restart (seamless transition, position preserved)
+- [ ] Press `Ctrl+K` → stops playback via IPC
+- [ ] Press `Ctrl+P` → playback control menu appears (not Textual command palette)
+
+**Notes:**
+
+---
+
+### Bottom Bar
+
+- [ ] Bottom bar shows `np: <title> – <MM:SS>` format during playback
+- [ ] Long filenames truncated to ~40 chars of show name + SxxExx
+- [ ] Bottom bar updates live with IPC position
+
+**Notes:**
+
+---
+
+### Navigation
+
+- [ ] Info page backspace → returns to browser
+- [ ] Info → play → backspace from Now Playing → returns to info page
+- [ ] Now Playing backspace → returns to previous page (info or browser)
+
+**Notes:**
+
+---
+
+### MpV Log
+
+- [ ] Press `Ctrl+G` during playback → mpv log page works
+- [ ] MpV log shows line numbers next to each line
+- [ ] MpV log shows scroll position indicator when content is scrollable
+
+**Notes:**
+
+---
+
+### General
+
+- [ ] Open app, play an item → Now Playing page auto-shows (no Ctrl+N needed)
+- [ ] Ctrl+G — mpv log works with line numbers
+
+**Notes:**
