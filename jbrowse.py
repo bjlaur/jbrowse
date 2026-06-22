@@ -1602,7 +1602,16 @@ class BrowseApp(App[object]):
         playback = self.playback_manager.snapshot()
         if playback["active"]:
             title = playback["title"] or "mpv"
-            parts.append(f"playing: {title}")
+            # Add live position from IPC if available
+            ipc_pos = self.playback_manager.ipc_get_property("time-pos")
+            ipc_pause = self.playback_manager.ipc_get_property("pause")
+            state_str = "playing"
+            if ipc_pause is not None:
+                state_str = "paused" if ipc_pause else "playing"
+            pos_str = ""
+            if ipc_pos is not None:
+                pos_str = f" {format_seconds(ipc_pos)}"
+            parts.append(f"{state_str}: {title}{pos_str}")
         if self.refreshing:
             parts.append(self.refresh_message or "refreshing...")
         elif self.refresh_error:
@@ -2644,6 +2653,8 @@ class PlaybackManager:
         self._ipc_sock: Optional[socket.socket] = None
         self._ipc_lock = threading.Lock()
         self._ipc_request_id = 0
+        self._progress_reporter: Optional[threading.Thread] = None
+        self._progress_stop = threading.Event()
 
     def write_log(self, text: str, reset: bool = False) -> None:
         """Keep a local, redacted trace of the most recent playback."""
@@ -2656,19 +2667,28 @@ class PlaybackManager:
             print(f"Could not write mpv log {self.log_path}: {exc}", file=sys.stderr)
 
     def position_ticks(self) -> int:
-        if self.item is None or self.started_at <= 0:
+        if self.item is None:
             return 0
 
+        # Try IPC first for accurate position
+        ipc_pos = self._ipc_get_number("time-pos")
+        if ipc_pos is not None:
+            return self.item.resume_ticks + int(ipc_pos * TICKS_PER_SECOND)
+
+        # Fall back to wall-clock estimation
+        if self.started_at <= 0:
+            return 0
         elapsed = max(0.0, time.monotonic() - self.started_at)
         return self.item.resume_ticks + int(elapsed * TICKS_PER_SECOND)
 
     def playback_payload(self, item: MediaItem, position_ticks: int) -> dict[str, Any]:
+        paused = self.ipc_get_property("pause")
         return {
             "ItemId": item.id,
             "MediaSourceId": item.id,
             "PlaySessionId": self.play_session_id,
             "PositionTicks": max(0, position_ticks),
-            "IsPaused": False,
+            "IsPaused": bool(paused) if paused is not None else False,
             "IsMuted": False,
             "CanSeek": True,
             "PlayMethod": "DirectStream",
@@ -2713,6 +2733,41 @@ class PlaybackManager:
                 pass
 
         return True
+
+    def _progress_reporter_worker(self, item: MediaItem, interval: float = 5.0) -> None:
+        """Periodically poll IPC position and send Jellyfin progress reports."""
+        while not self._progress_stop.is_set():
+            self._progress_stop.wait(timeout=interval)
+            if self._progress_stop.is_set():
+                break
+            if not self.is_active():
+                break
+            pos_ticks = self.position_ticks()
+            try:
+                self.report(
+                    "progress",
+                    self.client.report_playback_progress,
+                    item,
+                    pos_ticks,
+                )
+            except Exception:
+                pass  # non-fatal
+
+    def _start_progress_reporter(self, item: MediaItem) -> None:
+        self._progress_stop.clear()
+        self._progress_reporter = threading.Thread(
+            target=self._progress_reporter_worker,
+            name="jbrowse-progress-reporter",
+            daemon=True,
+            args=(item,),
+        )
+        self._progress_reporter.start()
+
+    def _stop_progress_reporter(self) -> None:
+        self._progress_stop.set()
+        if self._progress_reporter is not None:
+            self._progress_reporter.join(timeout=2)
+            self._progress_reporter = None
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
@@ -2833,6 +2888,11 @@ class PlaybackManager:
         """Seek to an absolute position in seconds via IPC."""
         return self._ipc_send(["seek", seconds, "absolute"]) is not None
 
+    def seek_relative(self, delta: float) -> bool:
+        """Seek relative by delta seconds (positive=forward, negative=backward) via IPC."""
+        resp = self._ipc_send(["seek", delta, "relative"])
+        return resp is not None and resp.get("error") == "success"
+
     def loadfile_replace(self, url: str) -> bool:
         """Replace current playback with a new URL via IPC."""
         resp = self._ipc_send(["loadfile", url, "replace"])
@@ -2924,6 +2984,9 @@ class PlaybackManager:
 
         self.report("start", self.client.report_playback_started, item, item.resume_ticks)
 
+        if self.ipc_socket_path is not None:
+            self._start_progress_reporter(item)
+
         reader = threading.Thread(
             target=self.read_output_worker,
             name="jbrowse-mpv-output",
@@ -2952,6 +3015,8 @@ class PlaybackManager:
 
     def wait_for_background_playback(self, process: subprocess.Popen, item: MediaItem) -> None:
         return_code = process.wait()
+        self._stop_progress_reporter()
+        # Brief wait for IPC to get final position before closing
         final_position = self.position_ticks()
         self.append_output(f"mpv exited with return code {return_code}\n")
         self.report("progress", self.client.report_playback_progress, item, final_position)
@@ -3004,6 +3069,9 @@ class PlaybackManager:
         self._ipc_connect(self.ipc_socket_path) if self.ipc_socket_path else None
         self.report("start", self.client.report_playback_started, item, item.resume_ticks)
 
+        if self.ipc_socket_path is not None:
+            self._start_progress_reporter(item)
+
         output = ""
         try:
             output, _unused = process.communicate()
@@ -3021,6 +3089,7 @@ class PlaybackManager:
             else:
                 return_code = process.returncode or 130
         finally:
+            self._stop_progress_reporter()
             final_position = self.position_ticks()
             self.report("progress", self.client.report_playback_progress, item, final_position)
             self.report("stopped", self.client.report_playback_stopped, item, final_position)
