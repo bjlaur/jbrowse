@@ -1469,6 +1469,7 @@ class BrowseApp(App[object]):
         self.refreshing = False
         self.refresh_message = ""
         self.refresh_error = ""
+        self._status_message_timer: Optional[ReferenceType] = None
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.refresh_thread: Optional[threading.Thread] = None
         now = time.monotonic()
@@ -1683,6 +1684,34 @@ class BrowseApp(App[object]):
                 self.refresh_message = "stopping mpv..."
             else:
                 self.refresh_message = "no active mpv playback"
+            self.update_bottom_status()
+            event.stop()
+            return
+
+        if event.key == "space" and self.playback_manager.is_active():
+            if self.playback_manager.toggle_pause():
+                self.refresh_message = "pause toggled"
+            else:
+                self.refresh_message = "pause toggle failed (no IPC?)"
+            self.update_bottom_status()
+            event.stop()
+            return
+
+        typed = getattr(event, "character", None)
+        if typed == "," and self.playback_manager.is_active():
+            if self.playback_manager.seek_relative(-10):
+                self.refresh_message = "seeked -10s"
+            else:
+                self.refresh_message = "seek failed (no IPC?)"
+            self.update_bottom_status()
+            event.stop()
+            return
+
+        if typed == "." and self.playback_manager.is_active():
+            if self.playback_manager.seek_relative(10):
+                self.refresh_message = "seeked +10s"
+            else:
+                self.refresh_message = "seek failed (no IPC?)"
             self.update_bottom_status()
             event.stop()
             return
@@ -2485,6 +2514,8 @@ class BrowseApp(App[object]):
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
         help_text.append("Ctrl+G       show mpv output\n")
         help_text.append("Ctrl+K       stop active mpv playback\n")
+        help_text.append("Space        pause/play toggle (when playing)\n")
+        help_text.append(", / .        seek -10s / +10s (when playing)\n")
         help_text.append("Ctrl+X       next theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
         help_text.append("F1 or ?      show this help too\n")
