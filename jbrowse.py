@@ -45,6 +45,7 @@ import subprocess
 import sys
 import threading
 import time
+import tempfile
 import textwrap
 import urllib.parse
 from pathlib import Path
@@ -2621,6 +2622,11 @@ def build_mpv_command(
     return (args, subtitle_track)
 
 
+def default_mpv_ipc_path() -> Path:
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    return Path(tempfile.gettempdir()) / f"jbrowse-mpv-{stamp}.sock"
+
+
 class PlaybackManager:
     def __init__(self, client: JellyfinClient):
         self.client = client
@@ -2634,6 +2640,10 @@ class PlaybackManager:
         self.last_return_code: Optional[int] = None
         self.lock = threading.Lock()
         self.log_lock = threading.Lock()
+        self.ipc_socket_path: Optional[Path] = None
+        self._ipc_sock: Optional[socket.socket] = None
+        self._ipc_lock = threading.Lock()
+        self._ipc_request_id = 0
 
     def write_log(self, text: str, reset: bool = False) -> None:
         """Keep a local, redacted trace of the most recent playback."""
@@ -2684,7 +2694,7 @@ class PlaybackManager:
             return self.process is not None and self.process.poll() is None
 
     def stop_active(self) -> bool:
-        """Request a normal mpv stop; the waiter sends the final report."""
+        """Stop playback via IPC first, fall back to terminate."""
         with self.lock:
             process = self.process
             active = process is not None and process.poll() is None
@@ -2692,12 +2702,16 @@ class PlaybackManager:
         if not active or process is None:
             return False
 
-        try:
-            process.terminate()
-        except OSError:
-            return False
-
+        self.stop_via_ipc()
         self.append_output("jbrowse requested mpv stop\n")
+
+        # if IPC didn't stop it (or no IPC), terminate the process
+        if self.process is not None and self.process.poll() is None:
+            try:
+                process.terminate()
+            except OSError:
+                pass
+
         return True
 
     def snapshot(self) -> dict[str, Any]:
@@ -2722,6 +2736,128 @@ class PlaybackManager:
                 del self.output_lines[: len(self.output_lines) - 2000]
         self.write_log(text)
 
+    # ── mpv IPC ──────────────────────────────────────────────────
+
+    def _ipc_connect(self, path: Path, timeout: float = 5.0) -> bool:
+        """Connect to mpv's IPC socket. Returns True on success."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                sock.settimeout(1.0)
+                sock.connect(str(path))
+                self._ipc_sock = sock
+                return True
+            except (OSError, ConnectionRefusedError, FileNotFoundError):
+                sock.close()
+                time.sleep(0.2)
+        return False
+
+    def _ipc_send(self, command: list, timeout: float = 3.0) -> Optional[dict]:
+        """Send an IPC command and wait for the response. Returns parsed JSON or None."""
+        if self._ipc_sock is None:
+            return None
+        with self._ipc_lock:
+            self._ipc_request_id += 1
+            req_id = self._ipc_request_id
+            payload = {"command": command, "request_id": req_id}
+            try:
+                self._ipc_sock.sendall((json.dumps(payload) + "\n").encode())
+                return self._ipc_recv_response(req_id, timeout)
+            except (OSError, json.JSONDecodeError):
+                return None
+
+    def _ipc_recv_response(self, req_id: int, timeout: float) -> Optional[dict]:
+        """Read lines from the IPC socket until we find our request_id."""
+        if self._ipc_sock is None:
+            return None
+        self._ipc_sock.settimeout(timeout)
+        buf = ""
+        try:
+            while True:
+                chunk = self._ipc_sock.recv(4096).decode("utf-8", errors="replace")
+                if not chunk:
+                    return None
+                buf += chunk
+                while "\n" in buf:
+                    line, buf = buf.split("\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if data.get("request_id") == req_id:
+                        return data
+        except (OSError, socket.timeout):
+            return None
+
+    def _ipc_get_number(self, property_name: str) -> Optional[float]:
+        """Get a numeric property from mpv via IPC. Returns None on failure."""
+        resp = self._ipc_send(["get_property", property_name])
+        if resp is None:
+            return None
+        if resp.get("error") != "success":
+            return None
+        data = resp.get("data")
+        if isinstance(data, (int, float)):
+            return float(data)
+        return None
+
+    def ipc_get_property(self, name: str) -> Optional[Any]:
+        """Public: get any mpv property. Returns the value or None."""
+        resp = self._ipc_send(["get_property", name])
+        if resp is None or resp.get("error") != "success":
+            return None
+        return resp.get("data")
+
+    def ipc_set_property(self, name: str, value: Any) -> bool:
+        """Public: set an mpv property. Returns True on success."""
+        resp = self._ipc_send(["set_property", name, value])
+        return resp is not None and resp.get("error") == "success"
+
+    def ipc_command(self, *args) -> bool:
+        """Public: run an arbitrary mpv command. Returns True on success."""
+        resp = self._ipc_send(list(args))
+        return resp is not None and resp.get("error") == "success"
+
+    def toggle_pause(self) -> bool:
+        """Toggle pause state via IPC. Returns True on success."""
+        paused = self.ipc_get_property("pause")
+        if paused is None:
+            return False
+        return self.ipc_set_property("pause", not paused)
+
+    def seek_to(self, seconds: float) -> bool:
+        """Seek to an absolute position in seconds via IPC."""
+        return self._ipc_send(["seek", seconds, "absolute"]) is not None
+
+    def loadfile_replace(self, url: str) -> bool:
+        """Replace current playback with a new URL via IPC."""
+        resp = self._ipc_send(["loadfile", url, "replace"])
+        return resp is not None and resp.get("error") == "success"
+
+    def set_track(self, kind: str, track_id: int) -> bool:
+        """Set a track via IPC. kind is 'sub' or 'audio'."""
+        return self.ipc_set_property(f"{kind}-id", track_id)
+
+    def stop_via_ipc(self) -> bool:
+        """Ask mpv to stop via IPC. Returns True if the command was sent."""
+        return self.ipc_command("stop")
+
+    def _ipc_close(self) -> None:
+        """Close the IPC socket and clean up."""
+        with self._ipc_lock:
+            if self._ipc_sock is not None:
+                try:
+                    self._ipc_sock.close()
+                except OSError:
+                    pass
+                self._ipc_sock = None
+
+    # ── end mpv IPC ──────────────────────────────────────────────
+
     def start_background(self, item: MediaItem, subtitle_choice: str = "auto") -> str:
         with self.lock:
             if self.process is not None and self.process.poll() is None:
@@ -2731,6 +2867,14 @@ class PlaybackManager:
 
         url = self.client.stream_url(item)
         args, subtitle_track = build_mpv_command(self.client.cfg, item, url, subtitle_choice)
+
+        # only set up IPC for real mpv, not fake/test commands
+        if args and Path(args[0]).name == "mpv":
+            self.ipc_socket_path = default_mpv_ipc_path()
+            args.append(f"--input-ipc-server={self.ipc_socket_path}")
+        else:
+            self.ipc_socket_path = None
+
         command = debug_mpv_command(args)
 
         self.write_log(
@@ -2774,6 +2918,10 @@ class PlaybackManager:
             self.last_command = command
             self.last_return_code = None
 
+        if self.ipc_socket_path is not None:
+            if not self._ipc_connect(self.ipc_socket_path):
+                self.append_output("warning: mpv started but IPC socket connect failed\n")
+
         self.report("start", self.client.report_playback_started, item, item.resume_ticks)
 
         reader = threading.Thread(
@@ -2808,6 +2956,7 @@ class PlaybackManager:
         self.append_output(f"mpv exited with return code {return_code}\n")
         self.report("progress", self.client.report_playback_progress, item, final_position)
         self.report("stopped", self.client.report_playback_stopped, item, final_position)
+        self._ipc_close()
 
         with self.lock:
             if self.process is process:
@@ -2820,6 +2969,13 @@ class PlaybackManager:
     def run(self, item: MediaItem, subtitle_choice: str = "auto") -> PlaybackResult:
         url = self.client.stream_url(item)
         args, subtitle_track = build_mpv_command(self.client.cfg, item, url, subtitle_choice)
+
+        if args and Path(args[0]).name == "mpv":
+            self.ipc_socket_path = default_mpv_ipc_path()
+            args.append(f"--input-ipc-server={self.ipc_socket_path}")
+        else:
+            self.ipc_socket_path = None
+
         command = debug_mpv_command(args)
 
         print(f"Now Playing: \033[1;32m{item.filename}\033[0m")
@@ -2845,6 +3001,7 @@ class PlaybackManager:
         self.item = item
         self.started_at = time.monotonic()
         self.play_session_id = secrets.token_hex(16)
+        self._ipc_connect(self.ipc_socket_path) if self.ipc_socket_path else None
         self.report("start", self.client.report_playback_started, item, item.resume_ticks)
 
         output = ""
@@ -2867,6 +3024,7 @@ class PlaybackManager:
             final_position = self.position_ticks()
             self.report("progress", self.client.report_playback_progress, item, final_position)
             self.report("stopped", self.client.report_playback_stopped, item, final_position)
+            self._ipc_close()
             self.item = None
             self.started_at = 0.0
             self.play_session_id = ""

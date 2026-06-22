@@ -66,6 +66,8 @@ input-ipc-server   # used by PlaybackManager for IPC
 - When a change adds or modifies a visible UI element, add or update a screenshot capture in `tools/svg_screenshot_poc.py` so the theme gallery reflects the new state.
 - Do not regenerate the full theme gallery on every commit — only when the UI actually changes.
 - The `--real-mpv` smoke test is a regression test only for IPC. It is not part of the normal smoke suite and requires `--real` plus a logged-in Jellyfin cache.
+- Use `--ipc-only` to run *just* the IPC smoke test without generating any screenshots. Fast path for playback/IPC work.
+- `--all-themes` is on-demand only — run it when the theme gallery actually needs updating (release time, new themes, UI changes). Never run it as a routine check.
 
 ## Release Notes And Roadmap Hygiene
 
@@ -82,9 +84,12 @@ input-ipc-server   # used by PlaybackManager for IPC
 
 Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.
 
-## Current Playback Debugging Handoff
+## Current Playback / IPC Status
 
-- The current background-playback cleanup work is uncommitted. It adds `Ctrl+K` to stop mpv, a deliberate two-step quit, info-panel `Progress`, registered Jellyfin mutation endpoints, and timestamped playback diagnostics.
-- The developer manually tried both stopping mpv directly with `Ctrl+C` and `Ctrl+K`; the info-panel `Progress` did not update afterward. Do not assume Jellyfin playback reporting works in normal use.
-- Each new playback writes a private, unredacted log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`. It records the exact mpv command, mpv output/exit code, and each Jellyfin start/progress/stopped report result. Do not print or commit its contents because it can contain stream credentials.
-- Next debugging step: reproduce one real playback, inspect the newest local log manually for report failures or return codes, then trace why accepted reports are not reflected in Jellyfin. Keep this separate from mpv IPC work.
+- mpv IPC is active: `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
+- IPC provides: `ipc_get_property`, `ipc_set_property`, `ipc_command`, `toggle_pause`, `seek_to`, `loadfile_replace`, `set_track`, `stop_via_ipc`.
+- `stop_active()` tries IPC `stop` first, falls back to `terminate()`.
+- `position_ticks()` still uses wall-clock estimation — Phase 2 will switch to IPC `time-pos`.
+- Jellyfin playback reporting still uses estimated position — Phase 2 will add periodic IPC progress polls.
+- Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
+- Next: Phase 2 — accurate Jellyfin reporting via IPC `time-pos`.

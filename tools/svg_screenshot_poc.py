@@ -69,6 +69,12 @@ def parse_args() -> argparse.Namespace:
         help="launch a real mpv instance via PlaybackManager and verify IPC (requires --real and a Jellyfin cache)",
     )
     parser.add_argument(
+        "--play-duration",
+        type=float,
+        default=3.0,
+        help="seconds to let mpv play before checking IPC position (default: 3.0)",
+    )
+    parser.add_argument(
         "--item",
         default="",
         help="case-insensitive title, filename, or series substring to feature in captures",
@@ -76,7 +82,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--all-themes",
         action="store_true",
-        help="write one browser SVG per theme under docs/themes",
+        help="write one browser SVG per theme under docs/themes (on-demand only, not routine)",
+    )
+    parser.add_argument(
+        "--ipc-only",
+        action="store_true",
+        help="skip all screenshot generation; run only the --real-mpv IPC smoke test (requires --real)",
     )
     return parser.parse_args()
 
@@ -368,9 +379,9 @@ def run_playback_smoke(cfg) -> dict:
     return result
 
 
-def run_real_mpv_smoke(cfg, client, item) -> None:
-    """Launch real mpv via PlaybackManager and verify it starts cleanly."""
-    log("running real mpv smoke test")
+def run_real_mpv_smoke(cfg, client, item, play_duration: float = 3.0) -> None:
+    """Launch real mpv via PlaybackManager and verify IPC position reporting."""
+    log(f"running real mpv smoke test (play_duration={play_duration}s)")
 
     if client.auth is None:
         log("logging in to Jellyfin for real mpv smoke")
@@ -383,12 +394,29 @@ def run_real_mpv_smoke(cfg, client, item) -> None:
     if not manager.is_active():
         raise RuntimeError("real mpv did not start in the background")
 
-    log("real mpv started; waiting 3s for playback")
-    time.sleep(3)
+    log(f"real mpv started; letting it play for {play_duration}s")
+    time.sleep(play_duration)
 
     snapshot = manager.snapshot()
     log(f"real mpv snapshot: active={snapshot['active']}, title={snapshot['title']}")
     log(f"real mpv output (first 200 chars): {snapshot['output'][:200]!r}")
+
+    # Verify IPC position reporting: time-pos should be close to play_duration
+    ipc_time_pos = manager.ipc_get_property("time-pos")
+    log(f"IPC time-pos: {ipc_time_pos}")
+    if ipc_time_pos is not None:
+        # Allow tolerance: mpv startup overhead + playback latency
+        min_expected = play_duration * 0.5  # at least 50% of elapsed time
+        max_expected = play_duration + 3.0   # no more than elapsed + 3s buffer
+        if not (min_expected <= ipc_time_pos <= max_expected):
+            raise RuntimeError(
+                f"IPC time-pos {ipc_time_pos:.1f}s out of expected range "
+                f"[{min_expected:.1f}, {max_expected:.1f}] after {play_duration}s playback"
+            )
+        log(f"IPC time-pos {ipc_time_pos:.1f}s is within expected range "
+            f"[{min_expected:.1f}, {max_expected:.1f}] — position reporting OK")
+    else:
+        log("WARNING: IPC time-pos returned None — position reporting not verified")
 
     if not manager.stop_active():
         raise RuntimeError("real mpv did not accept stop request")
@@ -417,6 +445,12 @@ async def main_async(args: argparse.Namespace) -> int:
     demo_item = choose_demo_item(items, args.item)
     if args.item:
         log(f"featuring {demo_item.title}")
+
+    if args.ipc_only:
+        if not args.real:
+            raise RuntimeError("--ipc-only requires --real (needs real Jellyfin cache and server)")
+        run_real_mpv_smoke(cfg, client, demo_item, args.play_duration)
+        return 0
 
     themes = discover_themes(theme_start)
     if args.all_themes:
@@ -514,7 +548,7 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.real_mpv:
         if not args.real:
             raise RuntimeError("--real-mpv requires --real (needs real Jellyfin cache and server)")
-        run_real_mpv_smoke(cfg, client, demo_item)
+        run_real_mpv_smoke(cfg, client, demo_item, args.play_duration)
 
     return 0
 
