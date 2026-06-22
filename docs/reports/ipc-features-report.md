@@ -2,13 +2,13 @@
 
 **Branch**: `ipc-features`
 **Date**: 2026-06-22
-**Status**: All 6 phases complete + playback control menu + screenshot harness updates
+**Status**: All 6 phases complete + playback control menu + screenshot harness updates + manual test fixes
 
 ---
 
 ## Summary
 
-Implemented a complete mpv IPC (Inter-Process Communication) layer and 6 feature phases on top of it, transforming jbrowse from a basic mpv launcher into a full-featured Jellyfin TUI with accurate playback reporting, live progress tracking, quality controls, and a Now Playing page. Also added a global playback control menu, comprehensive screenshot harness coverage, and a release checklist.
+Implemented a complete mpv IPC (Inter-Process Communication) layer and 6 feature phases on top of it, transforming jbrowse from a basic mpv launcher into a full-featured Jellyfin TUI with accurate playback reporting, live progress tracking, quality controls, and a Now Playing page. Also added a global playback control menu, comprehensive screenshot harness coverage, a release checklist, and manual test fixes (auto-show Now Playing, truncated titles, web URL hotkey, IPC progress updates).
 
 ---
 
@@ -72,6 +72,22 @@ Implemented a complete mpv IPC (Inter-Process Communication) layer and 6 feature
 
 29. **"and since that was a change you need to redo the check on all documentation and help page in jbrowse"** — ✅ All docs updated after each change.
 
+30. **"Note: auto-show Now Playing page when playback starts, q/backspace to return"** (from manual testing) — ✅ `start_playback()` now auto-opens Now Playing. Bottom bar shows truncated title like `Rick and Morty - S09E02`.
+
+31. **"Truncate long filenames in bottom bar — show ~10 chars + SxxExx"** (from manual testing) — ✅ Added `_format_title_for_bar()` — shows e.g. `Rick and Morty - S09E02`.
+
+32. **"Add hotkey on info and now playing to show web link for the episode"** (from manual testing) — ✅ Added `w` key on info page and Now Playing page. Shows Jellyfin web URL overlay.
+
+33. **"Update info page Progress line in real-time from IPC during playback"** (from manual testing) — ✅ `render_info()` now injects live IPC position when viewing the currently-playing item.
+
+34. **"Note: use short play-duration for regression tests"** — ✅ Default `--play-duration` changed to 0.5s. Note added to AGENTS.md.
+
+35. **"Did you add new screenshots for any new screens into the test harness?"** — ✅ Added 4 new captures: now-playing, playback-control, replace-prompt, web-url. Total: 12.
+
+36. **"do you really need to run the full harness every time?"** — ✅ Added `--view <name>` flag for single-capture iteration.
+
+37. **"make sure you add screenshot tests and verifications for all these new features"** — ✅ All new UI screens have harness captures with expected text checks.
+
 ---
 
 ## Commits on `ipc-features` branch
@@ -91,6 +107,10 @@ Implemented a complete mpv IPC (Inter-Process Communication) layer and 6 feature
 | `9e53d12` | Add release checklist to AGENTS.md |
 | `880ef82` | Add IPC features implementation report (v1) |
 | `3297e68` | Add screenshot harness captures for new UI screens + `--view` flag |
+| `88be9ef` | Note: use short play-duration for regression tests |
+| `ca08575` | Remove duplicate prompts from report |
+| `96d903f59` | Note: use short play-duration for regression tests |
+| `f08d8cb` | Manual test fixes: auto-now-playing, truncated titles, web URL, IPC progress, screenshots |
 
 ---
 
