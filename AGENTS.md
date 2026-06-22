@@ -75,6 +75,7 @@ input-ipc-server   # used by PlaybackManager for IPC
 - After each release, add a small `CHANGELOG.md` entry.
 - Each changelog entry should include a very small testing summary and note any important manual test gap.
 - When the user says to commit and/or push, treat that request as a Git-only operation. Do not make further file changes in that step. If a file change is still needed, stop and ask: "I just made my last changes before commit/push. Good to continue?"
+- **Every commit MUST update `AGENTS.md`, `todo.md`, and `CHANGELOG.md`** to reflect the current state. No code commit without corresponding docs updates.
 
 ## Near-Term Roadmap
 
@@ -94,5 +95,5 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - `playback_payload()` reads `pause` state from IPC.
 - Bottom status bar shows live playback state: `playing/paused: <title> <position>`.
 - Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
-- Completed: Phase 1 (IPC layer), Phase 2 (accurate Jellyfin reporting).
-- Next: Phase 4 — pause/stop/seek controls.
+- Completed: Phase 1 (IPC layer), Phase 2 (accurate Jellyfin reporting), Phase 3 (replace-playback prompt), Phase 4 (pause/stop/seek controls).
+- Next: Phase 5 — Now Playing page.

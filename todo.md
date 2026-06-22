@@ -76,8 +76,8 @@ Shift+Enter  direct playback
 
 - [x] Phase 1: Low-level IPC layer — socket connect, send/recv, property get/set, high-level helpers (`toggle_pause`, `seek_to`, `loadfile_replace`, `set_track`, `stop_via_ipc`). Committed `51bfb24`.
 - [x] Phase 2: Accurate Jellyfin reporting — `position_ticks()` uses IPC `time-pos`, periodic progress reporter (5s), `playback_payload()` reads pause state from IPC. Verified server-side with `--real`. Committed `f37d1ea`.
-- [ ] Phase 4: Pause/stop/seek controls — Space toggle, `,`/`. seek ±10s
-- [ ] Phase 3: Replace-current-playback prompt — confirm overlay + `loadfile_replace`
+- [x] Phase 3: Replace-current-playback prompt — confirm overlay with current/new item, `loadfile_replace` via IPC, Jellyfin session transition. Committed `7b391b0`.
+- [x] Phase 4: Pause/stop/seek controls — Space toggle pause, `,`/`. seek ±10s via IPC. Committed `2568d1e`.
 - [ ] Phase 5: Now Playing page — live progress bar, track info, Ctrl+N
 - [ ] Phase 6: Static bitrate selection — Ctrl+B cycle quality, `loadfile_replace` at position
 
