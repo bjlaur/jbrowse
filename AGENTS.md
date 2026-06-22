@@ -64,10 +64,12 @@ input-ipc-server   # used by PlaybackManager for IPC
 ## Screenshots
 
 - When a change adds or modifies a visible UI element, add or update a screenshot capture in `tools/svg_screenshot_poc.py` so the theme gallery reflects the new state.
+- **Every new UI page/overlay/prompt MUST have a corresponding capture in the harness.** Add a new entry to the `captures` list with expected text checks.
 - Do not regenerate the full theme gallery on every commit — only when the UI actually changes.
 - The `--real-mpv` smoke test is a regression test only for IPC. It is not part of the normal smoke suite and requires `--real` plus a logged-in Jellyfin cache.
 - Use `--ipc-only` to run *just* the IPC smoke test without generating any screenshots. Fast path for playback/IPC work.
 - `--all-themes` is on-demand only — run it when the theme gallery actually needs updating (release time, new themes, UI changes). Never run it as a routine check.
+- Use `--view <name>` to run a single capture for fast iteration during development (e.g. `--view now-playing`, `--view replace-prompt`, `--view playback-control`).
 
 ## Release Notes And Roadmap Hygiene
 
@@ -86,9 +88,10 @@ Before every release, run through this entire list. Do not skip steps.
 - [ ] `python -m py_compile tools/svg_screenshot_poc.py` — no syntax errors
 
 ### Automated Screenshot Harness
-- [ ] `python tools/svg_screenshot_poc.py --item otter` — all 8 SVGs pass checks
+- [ ] `python tools/svg_screenshot_poc.py --item otter` — all SVGs pass checks (currently 11 captures)
 - [ ] If UI changed: verify new screenshots look correct in `tools/screenshot/`
-- [ ] If new UI page or overlay: add a capture step to the harness
+- [ ] If new UI page/overlay/prompt: add a capture to the `captures` list with expected text checks
+- [ ] Use `--view <name>` for fast single-capture iteration during development
 
 ### IPC / Playback Smoke Tests (requires `--real` + Jellyfin cache)
 - [ ] `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 5`

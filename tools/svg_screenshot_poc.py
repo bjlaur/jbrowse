@@ -89,6 +89,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="skip all screenshot generation; run only the --real-mpv IPC smoke test (requires --real)",
     )
+    parser.add_argument(
+        "--view",
+        default="",
+        help="run only a single capture by view name (e.g. now-playing, replace-prompt, playback-control)",
+    )
     return parser.parse_args()
 
 
@@ -210,6 +215,21 @@ async def export_view(
             app.refresh_message = "refreshing..."
             app.update_bottom_status()
             await settle(app, pilot)
+        elif view == "now-playing":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+        elif view == "playback-control":
+            _setup_fake_playback(app, demo_item)
+            app._open_playback_control()
+            await settle(app, pilot)
+        elif view == "replace-prompt":
+            _setup_fake_playback(app, demo_item)
+            second_item = items[1] if len(items) > 1 else demo_item
+            app._pending_replace_item = second_item
+            app._replace_prompt_visible = True
+            await settle(app, pilot)
+            app._render_replace_prompt()  # render after settle so it's not overwritten
 
         if view in {"browser", "refreshing"} and app.visible_items:
             selected = app.visible_items[app.selected_index]
@@ -247,6 +267,60 @@ class FixtureClient:
 
     def report_playback_stopped(self, payload: dict) -> None:
         pass
+
+
+_FAKE_IPC_VALUES = {
+    "time-pos": 30.0,
+    "duration": 120.0,
+    "pause": False,
+    "track-list": [
+        {"type": "video", "codec": "hevc", "w": 1920, "h": 1080, "selected": True},
+        {"type": "audio", "codec": "ac3", "lang": "en", "demux-channel-count": 6, "selected": True},
+        {"type": "sub", "lang": "en", "selected": True},
+    ],
+}
+
+
+class _FakeProcess:
+    """A fake subprocess.Popen that looks active for screenshot captures."""
+    def poll(self):
+        return None  # None = still running
+    def terminate(self):
+        pass
+    def kill(self):
+        pass
+
+
+class _FakeIpcSock:
+    """Minimal fake IPC socket that returns plausible values for screenshot captures."""
+    def sendall(self, data: bytes) -> None:
+        pass
+    def recv(self, size: int) -> bytes:
+        return b""
+    def close(self) -> None:
+        pass
+    def settimeout(self, timeout: float) -> None:
+        pass
+
+
+def _setup_fake_playback(app: BrowseApp, item: MediaItem) -> None:
+    """Set up a fake active playback so Now Playing and Control Menu screens render with data."""
+    pm = app.playback_manager
+    pm.item = item
+    pm.play_session_id = "fixture-session"
+    pm.last_command = "mpv --fake-demo"
+    pm.output_lines = [f"Now Playing: {item.filename}\n", "line one\n", "line two\n"]
+    pm.last_return_code = None
+    pm.started_at = time.monotonic()
+    # Fake a "running" process so is_active() returns True
+    pm.process = _FakeProcess()
+    # Override IPC methods to return fake values
+    pm._ipc_sock = _FakeIpcSock()
+    pm.ipc_get_property = lambda name: _FAKE_IPC_VALUES.get(name)
+    pm._ipc_get_number = lambda name: _FAKE_IPC_VALUES.get(name)
+    pm.toggle_pause = lambda: True
+    pm.seek_relative = lambda d: True
+    pm.loadfile_replace = lambda url: True
 
 
 def fixture_cfg() -> Config:
@@ -479,6 +553,33 @@ async def main_async(args: argparse.Namespace) -> int:
             run_playback_smoke(cfg)
         return 0
 
+    # --view: run only a single capture for fast iteration (skips all other captures)
+    if args.view:
+        view_map = {
+            "browser": ("browser.svg", "browser", ["showing", "display:", "style:"]),
+            "after-ctrl-x": ("after-ctrl-x.svg", "after-ctrl-x", []),
+            "search": ("search.svg", "search", ["otter", "matched", "showing"]),
+            "info": ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
+            "subtitles": ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
+            "help": ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B"]),
+            "mpv-log": ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
+            "refreshing": ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
+            "now-playing": ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
+            "playback-control": ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
+            "replace-prompt": ("replace-prompt.svg", "replace-prompt", ["Replace playback?", "Currently playing", "Replace with:", "y replace", "n cancel"]),
+        }
+        if args.view not in view_map:
+            print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
+            return 1
+        output = Path(args.output).expanduser()
+        output.mkdir(parents=True, exist_ok=True)
+        filename, view_name, expected = view_map[args.view]
+        await export_view(
+            cfg, client, items, demo_item, themes[0], args.size,
+            output / filename, view_name, expected,
+        )
+        return 0
+
     output = Path(args.output).expanduser()
     output.mkdir(parents=True, exist_ok=True)
     for old_svg in output.glob("*.svg"):
@@ -527,10 +628,14 @@ async def main_async(args: argparse.Namespace) -> int:
         ("search.svg", "search", ["otter", "matched", "showing"]),
         ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
-        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X"]),
+        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B"]),
         ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
+        ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
+        ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
+        ("replace-prompt.svg", "replace-prompt", ["Replace playback?", "Currently playing", "Replace with:", "y replace", "n cancel"]),
     ]
+
     for index, (filename, view, expected) in enumerate(captures, start=2):
         await export_view(
             cfg,

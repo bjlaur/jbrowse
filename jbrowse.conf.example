@@ -47,3 +47,9 @@ display_mode = title
 # 0 disables periodic refresh. Positive values refresh in the background
 # while jbrowse has been active in the last 10 minutes.
 refresh_interval_minutes = 10
+
+[playback]
+# Quality presets for Ctrl+B cycling. "direct" = no transcoding.
+# Others use Jellyfin transcoding with MaxStreamingBitrate.
+quality_presets = direct,40mbps,20mbps,12mbps,8mbps,4mbps,2mbps
+default_quality = direct

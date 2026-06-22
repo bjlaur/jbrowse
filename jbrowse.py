@@ -2779,7 +2779,7 @@ class BrowseApp(App[object]):
         else:
             text.append(f"\n{format_seconds(ipc_pos)}\n")
 
-        text.append(f"\nstate: {state_str}")
+        text.append(f"\nstate: {state_str}    quality: {self._current_quality_label()}")
 
         # Track info from IPC track-list
         track_list = self.playback_manager.ipc_get_property("track-list")
