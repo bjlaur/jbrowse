@@ -33,7 +33,9 @@ display_mode = title
 
 [style]
 # Optional. Relative paths are relative to this jbrowse.conf file.
+# Use {script} to refer to the directory containing jbrowse.py.
 # path = themes/03-jbrowse-batman-low-contrast.tcss
+# path = {script}/themes/03-jbrowse-batman-low-contrast.tcss
 
 [mpv]
 # Optional. Commands are parsed with shell-like quoting.

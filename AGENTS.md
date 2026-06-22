@@ -14,6 +14,8 @@
 - Use `vim` in terminal examples when an editor example is needed.
 - Prefer Arch-style package commands when mentioning system packages.
 - Do not commit real local config, state, cache, or media-library data.
+- **Do not `pip install` dependencies into the system Python.** The user is handling Python dependencies (textual, requests, rich, etc.) inside their Containerfile / environment, not via pip from the agent. If a dependency is missing, tell the user to add it to the Containerfile rather than installing it yourself.
+- **Keep commit messages short — around 8 words.** Imperative mood, no body unless something truly needs explanation.
 
 ## Runtime Files
 

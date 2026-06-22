@@ -155,6 +155,8 @@ def expand_style_path(value: str, cfg_path: Path) -> Optional[Path]:
     if not value:
         return None
 
+    value = value.replace("{script}", str(script_dir()))
+
     path = Path(value).expanduser()
 
     if not path.is_absolute():
