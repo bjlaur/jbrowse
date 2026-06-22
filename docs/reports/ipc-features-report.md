@@ -162,21 +162,27 @@ Added 4 new captures: now-playing, playback-control, replace-prompt, web-url. Ad
 
 ---
 
-## Known Gaps / Manual Release Check Items
+## Manual Release Check Items
 
-1. Play an item — Now Playing page should auto-show
+### Initial Features (Part 1)
+1. Play an item — Now Playing page should auto-show (no Ctrl+N needed)
 2. Press `Space` — toggles pause, bottom bar updates
 3. Press `,` / `.` — seeks ±10s
 4. Press `Ctrl+B` — quality cycles
 5. Press `Ctrl+P` — playback control menu appears
-6. Press `w` on info/now playing — web URL overlay appears
-7. Play item, navigate to another, press Enter — replace prompt appears
-8. Press `y` — new item starts, old session stopped
-9. Press `Ctrl+G` during playback — mpv log page works
-10. Press `Ctrl+K` — stops playback via IPC
-11. Bottom bar shows truncated title like `Rick and Morty - S09E02`
-12. Info page Progress line updates live from IPC during playback
-13. **Bottom bar visual progress bar** — needs manual review (text-only for now, TODO item added)
+6. Play item, navigate to another, press Enter — replace prompt appears
+7. Press `y` — new item starts, old session stopped
+8. Press `Ctrl+G` during playback — mpv log page works
+9. Press `Ctrl+K` — stops playback via IPC
+
+### Re-tests Needed (Part 2 fixes — verified with `--real`)
+These were fixed after initial manual testing and need re-verification:
+
+10. **Auto-show Now Playing**: Play any item → Now Playing page appears automatically. q/backspace → returns to browser.
+11. **Truncated bottom bar titles**: Long filenames like `Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv` should show as `Rick and Morty - S09E02` in the bottom bar.
+12. **Web URL hotkey (`w`)**: On info page or Now Playing page, press `w` → overlay shows Jellyfin web URL. Any key closes it.
+13. **Live IPC progress on info page**: While playing, open the info page for the playing item → Progress line should show live position from IPC, not cached Jellyfin data.
+14. **Bottom bar visual progress bar**: Still text-only. Needs manual review to decide if a visual `█░` bar is needed (TODO item added).
 
 ---
 

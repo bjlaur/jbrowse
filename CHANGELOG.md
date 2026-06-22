@@ -55,15 +55,26 @@ Testing:
 - Help page updated with all new hotkeys (Space, comma, period, Ctrl+B, Ctrl+N, Ctrl+P).
 
 Manual release check:
-- Open app, play an item, press `Ctrl+N` — Now Playing page should show live progress bar.
+- Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed). Press q/backspace to return to browser.
 - Press `Space` — should toggle pause, bottom bar state should update.
 - Press `,` / `.` — should seek ±10s, position should update in bottom bar.
 - Press `Ctrl+B` — quality should cycle, brief status message shown.
 - Press `Ctrl+P` — playback control menu should appear with all controls.
+- Press `w` on info page or Now Playing page — Jellyfin web URL overlay should appear for the item.
 - Play an item, navigate to another, press Enter at info — replace prompt should appear.
 - Press `y` — new item should start playing, old Jellyfin session should be stopped.
 - Press `Ctrl+G` during playback — mpv log page should still work.
 - Press `Ctrl+K` — should stop playback via IPC.
+- Bottom bar should show truncated title like `Rick and Morty - S09E02` instead of full filename.
+- Info page Progress line should update live from IPC during playback (not just cached Jellyfin data).
+
+### Manual Re-tests Needed (from Part 2 fixes)
+These items were fixed after initial manual testing and need re-verification:
+- **Auto-show Now Playing**: Play any item → Now Playing page appears automatically. q/backspace → returns to browser.
+- **Truncated bottom bar titles**: Long filenames like `Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv` should show as `Rick and Morty - S09E02` in the bottom bar.
+- **Web URL hotkey (`w`)**: On info page or Now Playing page, press `w` → overlay shows Jellyfin web URL (`https://jellyfin.server/web/index.html#!/details?id=XXX`). Any key closes it.
+- **Live IPC progress on info page**: While playing, open the info page for the playing item → Progress line should show live position from IPC (e.g. `Progress: 4:34 / 22:10`), not the cached Jellyfin resume position.
+- **Bottom bar visual progress bar**: Still text-only. Needs manual review to decide if a visual `█░` bar is needed in the bottom bar (TODO item added).
 
 ## 0.0.33 - 2026-06-20
 
