@@ -14,113 +14,63 @@ Implemented a complete mpv IPC (Inter-Process Communication) layer and 6 feature
 
 ## All User Prompts & Completion Status
 
-### Prompt 1: "is this working?"
-**Status**: ✅ Confirmed OWL operational.
+1. **"is this working?"** — ✅ Confirmed OWL operational.
 
-### Prompt 2: "how do I change model and thinking harder stuff"
-**Status**: ✅ Explained /config and /reasoning commands.
+2. **"how do I change model and thinking harder stuff"** — ✅ Explained /config and /reasoning commands.
 
-### Prompt 3: "read the current state of things... make a plan"
-**Status**: ✅ Read entire codebase, wrote plan at `docs/plans/ipc-features.md`.
+3. **"read the current state of things... make a plan"** — ✅ Read entire codebase, wrote plan at `docs/plans/ipc-features.md`.
 
-### Prompt 4: "we were in progress of working on the IPC stuff, but opcode was getting tedious"
-**Status**: ✅ Acknowledged; rebuilt IPC layer from scratch after git reset.
+4. **"we were in progress of working on the IPC stuff, but opcode was getting tedious"** — ✅ Acknowledged; rebuilt IPC layer from scratch after git reset.
 
-### Prompt 5: "git reset"
-**Status**: ✅ Reset to clean slate at `d56a619`.
+5. **"git reset"** — ✅ Reset to clean slate at `d56a619`.
 
-### Prompt 6: "do we have a --real-mpv?"
-**Status**: ✅ Confirmed it exists. Added `--ipc-only` flag and `--play-duration` flag.
+6. **"do we have a --real-mpv?"** — ✅ Confirmed it exists. Added `--ipc-only` and `--play-duration` flags to test harness.
 
-### Prompt 7: "make a plan for implementing the IPC stuff"
-**Status**: ✅ Wrote comprehensive 6-phase plan.
+7. **"make a plan for implementing the IPC stuff"** — ✅ Wrote comprehensive 6-phase plan.
 
-### Prompt 8: "implement while I sleep... spawn agents... make sure you add tests and do smoke testing"
-**Status**: ✅ Implemented all phases with testing after each.
+8. **"implement while I sleep... spawn agents... make sure you add tests and do smoke testing"** — ✅ Implemented all phases with testing after each.
 
-### Prompt 9: "put whatever you think makes sense in the bottom part.. mostly progress and playing state"
-**Status**: ✅ Updated bottom status bar to show `playing/paused: <title> <MM:SS>` with live IPC position. Added quality label to Now Playing page.
+9. **"put whatever you think makes sense in the bottom part.. mostly progress and playing state"** — ✅ Updated bottom status bar with live IPC position. Added quality label to Now Playing page.
 
-### Prompt 10: "when you test that... make sure you check that it was updated server side"
-**Status**: ✅ Verified Jellyfin reports in `~/.cache/jbrowse/mpv.out-*` log — all accepted with accurate positions.
+10. **"when you test that... make sure you check that it was updated server side"** — ✅ Verified Jellyfin reports accepted with accurate positions in playback log.
 
-### Prompt 11: "from global (info page and browse page etc) we should be able to control state as well. Add a hotkey to show a menu"
-**Status**: ✅ Added Ctrl+P playback control menu — global overlay with pause, seek, quality, stop, now playing.
+11. **"from global (info page and browse page etc) we should be able to control state as well. Add a hotkey to show a menu"** — ✅ Added Ctrl+P playback control menu.
 
-### Prompt 12: "don't forget to update the example conf"
-**Status**: ✅ Added `[playback]` section to `jbrowse.conf.example`.
+12. **"don't forget to update the example conf"** — ✅ Added `[playback]` section to `jbrowse.conf.example`.
 
-### Prompt 13: "check to make sure all the help stuff was updated in jbrowse"
-**Status**: ✅ Help page updated with Space, comma/period, Ctrl+B, Ctrl+N, Ctrl+P. Verified in SVG.
+13. **"check to make sure all the help stuff was updated in jbrowse"** — ✅ Help page updated with all new hotkeys. Verified in SVG.
 
-### Prompt 14: "EVERY every commit you do should have the corresponding changes in changes.md, todo.md, and AGENTS.md"
-**Status**: ✅ Rule added to AGENTS.md. Followed for all subsequent commits.
+14. **"EVERY every commit you do should have the corresponding changes in changes.md, todo.md, and AGENTS.md"** — ✅ Rule added to AGENTS.md. Followed for all subsequent commits.
 
-### Prompt 15: "rename todo.md to TODO.md"
-**Status**: ✅ Done.
+15. **"rename todo.md to TODO.md"** — ✅ Done.
 
-### Prompt 16: "it seems like there are tons of stuff in TODO that were completed"
-**Status**: ✅ Completely rewrote TODO.md — only pending items remain.
+16. **"it seems like there are tons of stuff in TODO that were completed"** — ✅ Completely rewrote TODO.md — only pending items remain.
 
-### Prompt 17: "we're missing our 'manual release check' on the 0.0.34 section"
-**Status**: ✅ Added comprehensive manual release check to CHANGELOG.
+17. **"we're missing our 'manual release check' on the 0.0.34 section"** — ✅ Added comprehensive manual release check to CHANGELOG.
 
-### Prompt 18: "I also need you to do a release checklist plan and add that to AGENTS.MD"
-**Status**: ✅ Added full release checklist covering compile, screenshots, IPC smoke, theme gallery, docs, final verification.
+18. **"I also need you to do a release checklist plan and add that to AGENTS.MD"** — ✅ Added full release checklist.
 
-### Prompt 19: "don't forget the big report into an md file"
-**Status**: ✅ This document.
+19. **"don't forget the big report into an md file"** — ✅ This document.
 
-### Prompt 20: "about the progress bar at the bottom, let me do some manual use and review that idea. make a note in todo to follow up"
-**Status**: ✅ Added TODO item for bottom bar progress bar follow-up after manual review.
+20. **"about the progress bar at the bottom, let me do some manual use and review that idea. make a note in todo to follow up"** — ✅ Added TODO item for bottom bar progress bar follow-up.
 
-### Prompt 21: "did you add new screenshots for any new screens into the test harness?"
-**Status**: ✅ Added 3 new captures: now-playing.svg, playback-control.svg, replace-prompt.svg. Total: 11 captures.
+21. **"did you add new screenshots for any new screens into the test harness?"** — ✅ Added 3 new captures (now-playing, playback-control, replace-prompt). Total: 11.
 
-### Prompt 22: "update the ipc reports when done"
-**Status**: ✅ Updated IPC status in AGENTS.md after each phase.
+22. **"update the ipc reports when done"** — ✅ Updated IPC status in AGENTS.md after each phase.
 
-### Prompt 23: "make sure you were adding verifications for all your changes that can be verified visually into the test harness"
-**Status**: ✅ Every new UI screen has expected text checks in the harness. Rule added to AGENTS.md.
+23. **"make sure you were adding verifications for all your changes that can be verified visually into the test harness"** — ✅ Every new UI screen has expected text checks. Rule added to AGENTS.md.
 
-### Prompt 24: "do you really need to run the full harness every time? we should have the ability to just run what we need"
-**Status**: ✅ Added `--view <name>` flag for single-capture iteration. E.g. `--view now-playing`, `--view replace-prompt`.
+24. **"do you really need to run the full harness every time? we should have the ability to just run what we need"** — ✅ Added `--view <name>` flag for single-capture iteration.
 
-### Prompt 25: "ok, gonna go to the store. I expect another full report"
-**Status**: ✅ This document.
+25. **"ok, gonna go to the store. I expect another full report"** — ✅ This document.
 
-### Prompt 26: "when you're done with everything generate a full report"
-**Status**: ✅ This document.
+26. **"when you're done with everything generate a full report"** — ✅ This document.
 
-### Prompt 27: "rename todo.md to TODO.md to keep things consistent"
-**Status**: ✅ Already done (prompt 15).
+27. **"in... in agents... did you add that information about making sure that we are doing all this so agents don't forget"** — ✅ Rule added: "Every commit MUST update AGENTS.md, TODO.md, and CHANGELOG.md".
 
-### Prompt 28: "in... in agents... did you add that information about making sure that we are doing all this so agents don't forget in the future"
-**Status**: ✅ Rule added: "Every commit MUST update AGENTS.md, TODO.md, and CHANGELOG.md".
+28. **"continue until end of plan"** — ✅ All 6 phases + extras complete.
 
-### Prompt 29: "continue until end of plan"
-**Status**: ✅ All 6 phases + extras complete.
-
-### Prompt 30: "and since that was a change you need to redo the check on all documentation and help page in jbrowse"
-**Status**: ✅ All docs updated after each change.
-
-### Prompt 31: "and don't forget to update the example conf" (repeated)
-**Status**: ✅ Done.
-
-### Prompt 32: "check to make sure all the help stuff was updated in jbrowse" (repeated)
-**Status**: ✅ Done.
-
-### Prompt 33: "it seems like there are tons of stuff in TODO..." (repeated)
-**Status**: ✅ Done.
-
-### Prompt 34: "we're missing our 'manual release check'" (repeated)
-**Status**: ✅ Done.
-
-### Prompt 35: "I also need you to do a release checklist plan" (repeated)
-**Status**: ✅ Done.
-
-### Prompt 36: "don't forget the big report" (repeated)
-**Status**: ✅ Done.
+29. **"and since that was a change you need to redo the check on all documentation and help page in jbrowse"** — ✅ All docs updated after each change.
 
 ---
 
