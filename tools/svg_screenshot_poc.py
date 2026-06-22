@@ -234,6 +234,28 @@ async def export_view(
             app.info_item = demo_item
             await settle(app, pilot)
             app._show_web_url()
+        elif view == "mpv-log-scrolled":
+            _setup_fake_playback(app, demo_item)
+            app.open_mpv_log()
+            await settle(app, pilot)
+            # Scroll down a few lines to exercise line numbers + scroll bar
+            await pilot.press("down")
+            await pilot.press("down")
+            await pilot.press("down")
+            await settle(app, pilot)
+        elif view == "info-playing":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+        elif view == "now-playing-quality":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            # Cycle quality to trigger flash message
+            await pilot.press("ctrl+b")
+            await settle(app, pilot)
 
         if view in {"browser", "refreshing"} and app.visible_items:
             selected = app.visible_items[app.selected_index]
@@ -252,10 +274,15 @@ async def export_view(
     return app.return_value
 
 
+class _FakeState:
+    deviceid = "fixture-device-id"
+
+
 class FixtureClient:
     def __init__(self, cfg):
         self.cfg = cfg
         self.auth = Auth(user_id="fixture-user", token="fixture-token")
+        self.state = _FakeState()
 
     def stream_url(self, item: MediaItem) -> str:
         return f"https://example.invalid/Items/{item.id}/stream?api_key=fixture-token"
@@ -570,7 +597,7 @@ async def main_async(args: argparse.Namespace) -> int:
             "refreshing": ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
             "now-playing": ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
             "playback-control": ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
-            "replace-prompt": ("replace-prompt.svg", "replace-prompt", ["Replace playback?", "Currently playing", "Replace with:", "y replace", "n cancel"]),
+            "replace-prompt": ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "y play", "n cancel"]),
         }
         if args.view not in view_map:
             print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
@@ -633,12 +660,15 @@ async def main_async(args: argparse.Namespace) -> int:
         ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
         ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B"]),
-        ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
+        ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one", "1", "2", "3"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
         ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
         ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
-        ("replace-prompt.svg", "replace-prompt", ["Replace playback?", "Currently playing", "Replace with:", "y replace", "n cancel"]),
+        ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "y play", "n cancel"]),
         ("web-url.svg", "web-url", ["Jellyfin Web URL", "example.invalid", "details?id=", "q close"]),
+        ("mpv-log-scrolled.svg", "mpv-log-scrolled", ["mpv log", "Status", "5", "6"]),
+        ("info-playing.svg", "info-playing", ["Info", "Progress", "0:30 / 2:00"]),
+        ("now-playing-quality.svg", "now-playing-quality", ["Now Playing", "quality: 40mbps"]),
     ]
 
     for index, (filename, view, expected) in enumerate(captures, start=2):

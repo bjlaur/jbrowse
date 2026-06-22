@@ -15,12 +15,12 @@
 - `position_ticks()` uses IPC `time-pos` first, falls back to wall-clock.
 - Periodic progress reporter thread sends `/Sessions/Playing/Progress` every 5s via IPC.
 - `playback_payload()` reads `pause` state from IPC instead of hardcoding `False`.
-- Bottom status bar shows live playback state with position: `playing/paused: <title> <MM:SS>`.
+- Bottom status bar shows live playback state with position: `np: <title> – <MM:SS>`.
 - Verified server-side: all Jellyfin start/progress/stopped reports accepted with accurate positions.
 
 ### Phase 3 — Replace-current-playback prompt
 - Confirmation overlay when trying to play while something is already active.
-- Shows current item and replacement item, `y replace | n cancel`.
+- Shows "Already playing" with current item, "Play this instead?" with new item, `y play  n cancel`.
 - On confirm: stops old Jellyfin session, uses IPC `loadfile_replace` for seamless transition.
 
 ### Phase 4 — Pause/stop/seek controls
@@ -33,7 +33,9 @@
 - New `now_playing` page, opened with `Ctrl+N`.
 - Progress bar with `█░` blocks, position/duration from IPC.
 - State display: playing/paused, video/audio/subtitle track info from IPC `track-list`.
-- Auto-returns to browser when playback ends while on this page.
+- Backspace/q returns to `previous_page` (info or browser), not hardcoded browser.
+- Web URL overlay (`w` key) not overwritten by 1-second poll timer.
+- Ctrl+B shows 3-second quality flash message on-page.
 
 ### Phase 6 — Static bitrate selection
 - `[playback]` config section: `quality_presets` and `default_quality`.
@@ -43,38 +45,42 @@
 
 ### Playback control menu (Ctrl+P)
 - Global overlay accessible from any page.
+- `use_command_palette = False` set as class attribute to prevent Textual command palette conflict.
 - Shows current playback state: title, position/duration, quality.
 - Key actions: Space pause, `,`/`. seek, Ctrl+B quality, Ctrl+K stop, Ctrl+N now playing.
 - `q`/`Escape`/`backspace` closes and returns to browser.
 
+### Info page live progress
+- Progress line uses regex match to avoid duplicate (add_kv format has no colon).
+- 1-second auto-update poll when info page is open for the currently playing item.
+
+### MpV log improvements
+- Line numbers added to mpv log page.
+- Scroll position indicator (█░ bar + percentage) shown when content is scrollable.
+
 Testing:
 - Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
-- Passed `python tools/svg_screenshot_poc.py --item otter` (8 screenshots).
+- Passed `python tools/svg_screenshot_poc.py --item otter` (15 screenshots, all pass).
 - Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
 - Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
 - Help page updated with all new hotkeys (Space, comma, period, Ctrl+B, Ctrl+N, Ctrl+P).
+- New harness captures: mpv-log-scrolled (line numbers), info-playing (live progress), now-playing-quality (quality cycle).
+- Updated screenshot harness: replace-prompt capture expects new wording; FixtureClient has state.deviceid for quality cycling.
 
 Manual release check:
-- Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed). Press q/backspace to return to browser.
+- Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed).
 - Press `Space` — should toggle pause, bottom bar state should update.
 - Press `,` / `.` — should seek ±10s, position should update in bottom bar.
-- Press `Ctrl+B` — quality should cycle, brief status message shown.
-- Press `Ctrl+P` — playback control menu should appear with all controls.
-- Press `w` on info page or Now Playing page — Jellyfin web URL overlay should appear for the item.
-- Play an item, navigate to another, press Enter at info — replace prompt should appear.
+- Press `Ctrl+B` — quality should cycle, 3-second flash message shown on Now Playing page.
+- Press `Ctrl+P` — playback control menu should appear with all controls (not Textual command palette).
+- Press `w` on info page or Now Playing page — Jellyfin web URL overlay should appear and stay visible for 3+ seconds.
+- Play an item, navigate to another, press Enter at info — replace prompt should appear with "Already playing" / "Play this instead?" wording.
 - Press `y` — new item should start playing, old Jellyfin session should be stopped.
-- Press `Ctrl+G` during playback — mpv log page should still work.
+- Press `Ctrl+G` during playback — mpv log page should still work with line numbers.
 - Press `Ctrl+K` — should stop playback via IPC.
-- Bottom bar should show truncated title like `Rick and Morty - S09E02` instead of full filename.
-- Info page Progress line should update live from IPC during playback (not just cached Jellyfin data).
-
-### Manual Re-tests Needed (from Part 2 fixes)
-These items were fixed after initial manual testing and need re-verification:
-- **Auto-show Now Playing**: Play any item → Now Playing page appears automatically. q/backspace → returns to browser.
-- **Truncated bottom bar titles**: Long filenames like `Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv` should show as `Rick and Morty - S09E02` in the bottom bar.
-- **Web URL hotkey (`w`)**: On info page or Now Playing page, press `w` → overlay shows Jellyfin web URL (`https://jellyfin.server/web/index.html#!/details?id=XXX`). Any key closes it.
-- **Live IPC progress on info page**: While playing, open the info page for the playing item → Progress line should show live position from IPC (e.g. `Progress: 4:34 / 22:10`), not the cached Jellyfin resume position.
-- **Bottom bar visual progress bar**: Still text-only. Needs manual review to decide if a visual `█░` bar is needed in the bottom bar (TODO item added).
+- Bottom bar should show `np: <title> – <MM:SS>` format (e.g. `np: Rick and Morty – S09E02 – 2:34`).
+- Info page Progress line should update live from IPC during playback (not just cached Jellyfin data), auto-updates without cursor movement.
+- Open info page for playing item, press q/backspace → returns to browser. Open info → play → backspace from Now Playing → returns to info page.
 
 ## 0.0.33 - 2026-06-20
 
@@ -124,7 +130,7 @@ Changes:
 - Keep estimated Jellyfin playback reporting based on elapsed process runtime.
 - Trigger background refresh when background playback ends.
 - Updated help text with the new `Ctrl+G` hotkey.
-- Added an SVG harness capture for the `mpv log` page using fake output.
+- Added an SVG harness capture for the `mpv` log page using fake output.
 - Added an opt-in fake playback smoke test with `tools/svg_screenshot_poc.py --playback-smoke`.
 
 Testing summary:

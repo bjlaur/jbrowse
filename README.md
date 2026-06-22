@@ -37,8 +37,10 @@ Current features:
 - **Now Playing page** (Ctrl+N) with live progress bar, track info, pause state.
 - **Playback control menu** (Ctrl+P) — global overlay for pause, seek, quality, stop.
 - **Pause/seek controls** — Space toggles pause, `,`/`. seek ±10s.
-- **Replace playback prompt** — confirmation overlay when playing over active playback.
+- **Replace playback prompt** — "Already playing" confirmation overlay when playing over active playback.
 - **Static bitrate selection** (Ctrl+B) — cycle quality presets via transcoding.
+- **Web URL hotkey** (`w`) — show Jellyfin web URL overlay from info or Now Playing page.
+- **MpV log line numbers** — line numbers and scroll position indicator on the mpv log page.
 - Configurable `mpv_cmd` playback template.
 - `mpv` command/output viewer with `Ctrl+G`.
 - Resume start position from Jellyfin user data.
@@ -260,14 +262,15 @@ q/backspace  cancel
 
 ### Now Playing page
 
-Auto-opens when playback starts. Truncated title shown in bottom bar (e.g. `Rick and Morty - S09E02`).
+Auto-opens when playback starts. Truncated title shown in bottom bar (e.g. `np: Rick and Morty – S09E02 – 2:34`).
 
 ```text
-q/backspace  return to browser
+q/backspace  return to previous page (browser or info)
 Space        pause/play toggle
 , / .        seek -10s / +10s
 s            open subtitle picker
 w            show Jellyfin web URL for this item
+Ctrl+B       cycle quality / bitrate
 Ctrl+G       show mpv log
 ```
 

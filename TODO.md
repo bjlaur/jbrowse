@@ -40,6 +40,19 @@ Shift+Enter  direct playback
 
 ---
 
+## Manual Testing Fixes (0.0.34 re-test round) — ALL COMPLETE
+
+- [x] Ctrl+P: moved `use_command_palette = False` to class level to prevent Textual command palette
+- [x] Replace prompt: rewording to "Already playing" / "Play this instead?" / "y play  n cancel"
+- [x] MpV log: added line numbers and scroll position indicator (█░ bar + percentage)
+- [x] Now Playing backspace: returns to `previous_page` instead of hardcoded "browser"
+- [x] Bottom bar: `np:` prefix, en dash separator, 40-char title limit (was 10)
+- [x] Web URL overlay: poll timer skips re-rendering when overlay is visible
+- [x] Info page Progress: fixed duplicate line (regex match), added 1s auto-update poll
+- [x] Ctrl+B quality flash: 3-second on-page message when quality changes on Now Playing page
+
+---
+
 ## Pending (after IPC features)
 
 ### Bottom bar progress bar

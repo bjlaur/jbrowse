@@ -102,15 +102,14 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - `position_ticks()` uses IPC `time-pos` first, falls back to wall-clock estimation.
 - Periodic progress reporter sends Jellyfin `/Sessions/Playing/Progress` every 5s via IPC.
 - `playback_payload()` reads `pause` state from IPC.
-- Bottom status bar shows live playback state: `playing/paused: <title> <position>`.
+- Bottom status bar shows live playback state: `np: <title> – <MM:SS>`.
 - Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
-- Completed: All IPC feature phases (1–6) + playback control menu.
-- Phase 1: Low-level IPC socket layer
-- Phase 2: Accurate Jellyfin reporting via IPC time-pos
-- Phase 3: Replace-current-playback prompt with loadfile_replace
-- Phase 4: Pause/stop/seek controls (Space, comma, period)
-- Phase 5: Now Playing page (Ctrl+N) with live progress bar
-- Phase 6: Static bitrate selection (Ctrl+B) with quality cycling
-- Playback control menu: Ctrl+P for global playback overlay
-- Manual release check for 0.0.34: see CHANGELOG.md section "Manual release check" under 0.0.34.
+- `use_command_palette = False` set as class attribute on `BrowseApp` to prevent Textual from intercepting Ctrl+P.
+- Now Playing page: backspace/q returns to `previous_page` (not hardcoded browser).
+- Now Playing page: Ctrl+B shows 3-second quality flash message on-page.
+- Now Playing page: web URL overlay (w key) not overwritten by 1s poll timer.
+- Info page: Progress line uses regex match to avoid duplicate; 1s auto-update poll when viewing playing item.
+- MpV log: line numbers + scroll position indicator (█░ bar + percentage).
+- Replace prompt: "Already playing" / "Play this instead?" / "y play  n cancel".
+- Completed: All IPC feature phases (1–6) + playback control menu + all manual testing re-test fixes.
 - Next: Server-side safety guard, audio picker, help text cleanup.

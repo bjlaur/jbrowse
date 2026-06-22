@@ -1430,6 +1430,7 @@ class ItemPane(Static, can_focus=True):
 
 class BrowseApp(App[object]):
     CSS = ""
+    use_command_palette = False  # we use Ctrl+P for playback control
 
     def __init__(
         self,
@@ -1489,8 +1490,11 @@ class BrowseApp(App[object]):
         self._replace_prompt_visible = False
         self._pending_replace_item: Optional[MediaItem] = None
         self._now_playing_poll_stop = False
+        self._info_poll_stop = False
         self.now_playing_scroll = ui_state.now_playing_scroll
         self._quality_index = 0
+        self._quality_flash = ""
+        self._quality_flash_until = 0.0
         self._playback_control_visible = False
         self._web_url_visible = False
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
@@ -1639,8 +1643,8 @@ class BrowseApp(App[object]):
                 state_str = "paused" if ipc_pause else "playing"
             pos_str = ""
             if ipc_pos is not None:
-                pos_str = f" {format_seconds(ipc_pos)}"
-            parts.append(f"{state_str}: {title}{pos_str}")
+                pos_str = f" – {format_seconds(ipc_pos)}"
+            parts.append(f"np: {title}{pos_str}")
         if self.refreshing:
             parts.append(self.refresh_message or "refreshing...")
         elif self.refresh_error:
@@ -1723,22 +1727,21 @@ class BrowseApp(App[object]):
 
     def _render_replace_prompt(self) -> None:
         text = Text()
-        text.append("Replace playback?\n\n", style="bold")
+        text.append("Already playing\n\n", style="bold")
 
         current_title = ""
         if self.playback_manager.item is not None:
             current_title = self.playback_manager.item.title
-        text.append(f"Currently playing:\n", style="bold")
         text.append(f"{current_title}\n\n")
 
         pending = getattr(self, "_pending_replace_item", None)
         new_title = pending.title if pending is not None else "?"
-        text.append(f"Replace with:\n", style="bold")
+        text.append(f"Play this instead?\n\n", style="bold")
         text.append(f"{new_title}\n\n")
 
-        text.append("y replace | n cancel", style="dim")
+        text.append("y play  n cancel", style="dim")
 
-        self.listbox.update(self.overlay_panel(text, "Replace Playback"))
+        self.listbox.update(self.overlay_panel(text, "Already Playing"))
 
     def _handle_replace_key(self, key: str) -> bool:
         """Handle key presses on the replace prompt. Returns True if handled."""
@@ -1801,9 +1804,10 @@ class BrowseApp(App[object]):
 
         # Use loadfile_replace via IPC
         if self.playback_manager.loadfile_replace(url):
-            self.refresh_message = f"quality: {quality}"
+            self._quality_flash = f"quality: {quality}"
         else:
-            self.refresh_message = f"quality change failed (no IPC?)"
+            self._quality_flash = "quality change failed (no IPC?)"
+        self._quality_flash_until = time.monotonic() + 3.0
         self.update_bottom_status()
 
     def _build_stream_url(self, item: MediaItem, quality: str) -> Optional[str]:
@@ -2032,8 +2036,8 @@ class BrowseApp(App[object]):
 
         if self.page == "now_playing":
             if event.key in {"q", "escape", "backspace"}:
-                self.page = "browser"
                 self._now_playing_poll_stop = True
+                self.page = self.previous_page
                 self.render_items()
                 self.query.focus()
                 event.stop()
@@ -2056,6 +2060,11 @@ class BrowseApp(App[object]):
                 return
             if typed == "s" or event.key == "s":
                 self.open_subtitle_picker()
+                event.stop()
+                return
+            if event.key == "ctrl+b":
+                self._cycle_quality()
+                self._render_now_playing()
                 event.stop()
                 return
             if event.key == "ctrl+g":
@@ -2103,6 +2112,7 @@ class BrowseApp(App[object]):
             typed = getattr(event, "character", None)
 
             if event.key in {"q", "escape", "backspace"} or typed == "q":
+                self._info_poll_stop = True
                 self.page = "browser"
                 self.render_items()
                 self.query.focus()
@@ -2517,7 +2527,14 @@ class BrowseApp(App[object]):
 
         self.page = "info"
         self.info_scroll = 0
+        self._info_poll_stop = True  # stop any previous info poll
         self.render_info()
+        # Auto-update progress if this is the currently playing item
+        pm_item = self.playback_manager.item
+        if (pm_item is not None and self.info_item is not None
+                and self.info_item.id == pm_item.id
+                and self.playback_manager.is_active()):
+            self._start_info_poll()
 
     def info_series_items(self) -> list[MediaItem]:
         if self.info_item is None:
@@ -2698,7 +2715,7 @@ class BrowseApp(App[object]):
         self.listbox.update(self.overlay_panel(text, "Subtitles"))
 
     def _format_title_for_bar(self, item: MediaItem) -> str:
-        """Truncate title for bottom/status bar: ~10 chars of show name + SxxExx."""
+        """Truncate title for bottom/status bar: show name + SxxExx."""
         import re
         title = item.title
         se_match = re.search(r'S(\d+)E(\d+)', title)
@@ -2710,10 +2727,10 @@ class BrowseApp(App[object]):
         else:
             parts = title.split(" - ")
             name = parts[0] if parts else title
-        if len(name) > 10:
-            name = name[:10] + "…"
+        if len(name) > 40:
+            name = name[:40] + "…"
         if se_str:
-            return f"{name} - {se_str}"
+            return f"{name} – {se_str}"
         return name
 
     def _web_url(self, item: MediaItem) -> str:
@@ -2738,8 +2755,9 @@ class BrowseApp(App[object]):
                     pos_ticks = int(ipc_pos * TICKS_PER_SECOND)
                     dur_ticks = int(ipc_dur * TICKS_PER_SECOND) if ipc_dur else self.info_item.runtime_ticks
                     live_progress = f"Progress:   {format_progress(pos_ticks, dur_ticks)}"
-                    lines = [live_progress if l.startswith("Progress:") else l for l in lines]
-                    if not any(l.startswith("Progress:") for l in self.info_item.info_lines):
+                    # Match "Progress" label regardless of padding (add_kv uses left-aligned format)
+                    lines = [live_progress if re.match(r"Progress\s*:", l) else l for l in lines]
+                    if not any(re.match(r"Progress\s*:", l) for l in self.info_item.info_lines):
                         lines.insert(3, live_progress)
 
         height = max(8, self.viewport_height() - 4)
@@ -2819,8 +2837,34 @@ class BrowseApp(App[object]):
             return
         if self._now_playing_poll_stop:
             return
+        if getattr(self, "_web_url_visible", False):
+            # Don't overwrite the web URL overlay; just re-arm the timer
+            self.set_timer(1.0, self._poll_now_playing)
+            return
         self._render_now_playing()
         self.set_timer(1.0, self._poll_now_playing)
+
+    def _start_info_poll(self) -> None:
+        self._info_poll_stop = False
+        self.set_timer(1.0, self._poll_info)
+
+    def _poll_info(self) -> None:
+        if self.page != "info":
+            return
+        if self._info_poll_stop:
+            return
+        if getattr(self, "_web_url_visible", False):
+            self.set_timer(1.0, self._poll_info)
+            return
+        # Only keep polling if the info item is still the playing item
+        pm_item = self.playback_manager.item
+        if (self.info_item is not None and pm_item is not None
+                and self.info_item.id == pm_item.id
+                and self.playback_manager.is_active()):
+            self.render_info()
+            self.set_timer(1.0, self._poll_info)
+        else:
+            self._info_poll_stop = True
 
     def _render_now_playing(self) -> None:
         self.focus_overlay()
@@ -2861,6 +2905,12 @@ class BrowseApp(App[object]):
             text.append(f"\n{format_seconds(ipc_pos)}\n")
 
         text.append(f"\nstate: {state_str}    quality: {self._current_quality_label()}")
+
+        # Quality flash message
+        if self._quality_flash and time.monotonic() < self._quality_flash_until:
+            text.append(f"\n\n{self._quality_flash}", style="bold")
+        elif self._quality_flash and time.monotonic() >= self._quality_flash_until:
+            self._quality_flash = ""
 
         # Track info from IPC track-list
         track_list = self.playback_manager.ipc_get_property("track-list")
@@ -2946,11 +2996,26 @@ class BrowseApp(App[object]):
 
         text = Text()
         text.append("q/backspace close | ↑/↓ scroll | PageUp/PageDown | Home/End", style="dim")
-        text.append("\n\n")
+        text.append("\n")
+
+        # Scroll position indicator
+        if max_scroll > 0:
+            bar_width = 20
+            pos = int(self.mpv_log_scroll / max_scroll * (bar_width - 1)) if max_scroll > 0 else 0
+            scroll_bar = "█" * (pos + 1) + "░" * (bar_width - pos - 1)
+            pct = int((self.mpv_log_scroll + height) / len(lines) * 100)
+            text.append(f"  {scroll_bar}  {pct}%\n", style="dim")
+        text.append("\n")
+
+        total_lines = len(lines)
+        num_width = len(str(total_lines))
 
         for line_number, line in enumerate(shown):
             if line_number:
                 text.append("\n")
+
+            abs_num = self.mpv_log_scroll + line_number + 1
+            text.append(f"{abs_num:>{num_width}}  ", style="dim")
 
             if line in {"Status", "Command", "Output"}:
                 text.append(line, style="bold")
