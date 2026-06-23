@@ -111,11 +111,15 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - Now Playing page: web URL overlay (w key) not overwritten by 1s poll timer.
 - Info page: Progress line uses regex match to avoid duplicate; 1s auto-update poll when viewing playing item.
 - MpV log: line numbers + scroll position indicator (█░ bar + percentage).
-- Replace prompt: "Already playing" / "Play this instead?" / "y play  n cancel".
+- Replace prompt: "Already playing" / "Play this instead?" / "Enter  →  replace" / "Backspace  →  cancel". Panel title: "Replace Playback".
 - Ctrl+B quality change: seeks back to saved position after loadfile_replace (0.5s delay thread).
 - Replace prompt `n`/backspace: returns to info page (not browser).
+- Same-item Enter: pressing Enter on the currently playing item opens Now Playing directly (no replace prompt).
+- Ctrl+K from Now Playing: returns to previous_page (info) instead of browser.
 - Web URL overlay: render_info() and _render_now_playing() guard on _web_url_visible.
-- Info page Progress: regex fixed (Progress\s instead of Progress\s*:); _web_url_visible guard added.
-- Harness: 28 captures including new views for all fixed items.
+- Info page Progress: regex fixed (Progress\s instead of Progress\s*:); _web_url_visible guard added; 1s auto-update poll with self.refresh().
+- Help key: F1 removed (Textual intercepts it). Use Ctrl+L or ? (? may not work in all terminals).
+- No F keys policy: F1–F12 all intercepted by Textual, don't use them.
+- Harness: 29+ captures including new views for all fixed items. --real-mpv-bitrate test added.
 - Completed: All IPC feature phases (1–6) + playback control menu + all manual testing re-test fixes.
-- Next: Server-side safety guard, audio picker, help text cleanup.
+- Next: Server-side safety guard, audio picker, help text cleanup, jump to time feature.
