@@ -47,88 +47,32 @@
 
 ## New Re-test Requests
 
-### Replace Prompt
-
-- [ ] Press Enter on replace prompt → starts playback (same as `y`)
-- [ ] Press Backspace on replace prompt → cancels and returns to info page
-- [ ] Press `n` on replace prompt → cancels and returns to info page (not browser)
-- [ ] Press `y` on replace prompt → starts new playback, old session stops
-- [ ] Replace prompt shows "Already playing" / "Play this instead?" / "y play  n cancel"
-
-**Notes:**
-
----
-
-### Info Page Live Progress
-
-- [ ] Open info page for a currently playing item → Progress line shows live IPC position
-- [ ] Progress line updates automatically every second without moving cursor
-- [ ] Only one Progress line visible (no duplicate)
-- [ ] Progress line shows correct position from IPC (e.g. `Progress: 2:34 / 22:10`)
-
-**Notes:**
-
----
-
-### Web URL Overlay
-
-- [ ] Press `w` on info page → overlay shows Jellyfin web URL
-- [ ] Press `w` on info page → overlay stays visible (not overwritten by IPC refresh)
-- [ ] Press any key → overlay closes
-- [ ] Press `w` on Now Playing page → overlay shows Jellyfin web URL
-- [ ] Press `w` on Now Playing page → overlay stays visible for 3+ seconds
-
-**Notes:**
-
----
-
-### Playback Controls
-
-- [ ] Press `Space` → toggles pause/play, bottom bar updates
-- [ ] Press `,` → seeks -10s, position updates in bottom bar
-- [ ] Press `.` → seeks +10s, position updates in bottom bar
-- [ ] Press `Ctrl+B` → quality cycles, 3-second flash message on Now Playing page
-- [ ] Press `Ctrl+B` → video does NOT restart (seamless transition, position preserved)
-- [ ] Press `Ctrl+K` → stops playback via IPC
-- [ ] Press `Ctrl+P` → playback control menu appears (not Textual command palette)
-
-**Notes:**
-
----
-
-### Bottom Bar
-
-- [ ] Bottom bar shows `np: <title> – <MM:SS>` format during playback
-- [ ] Long filenames truncated to ~40 chars of show name + SxxExx
-- [ ] Bottom bar updates live with IPC position
-
-**Notes:**
-
----
-
-### Navigation
-
-- [ ] Info page backspace → returns to browser
-- [ ] Info → play → backspace from Now Playing → returns to info page
-- [ ] Now Playing backspace → returns to previous page (info or browser)
-
-**Notes:**
-
----
-
-### MpV Log
-
-- [ ] Press `Ctrl+G` during playback → mpv log page works
-- [ ] MpV log shows line numbers next to each line
-- [ ] MpV log shows scroll position indicator when content is scrollable
-
-**Notes:**
-
----
-
-### General
-
-- [ ] Open app, play an item → Now Playing page auto-shows (no Ctrl+N needed)
-- [ ] Ctrl+G — mpv log works with line numbers
-
-**Notes:**
+| # | Test | Harness | Manual | Notes |
+|---|------|---------|--------|-------|
+| 21 | Press Enter on replace prompt → starts playback (same as `y`) | [ ] | [ ] | **FIX APPLIED**: Enter now mapped to play. Needs re-test. |
+| 22 | Press Backspace on replace prompt → cancels, returns to info page | [ ] | [ ] | **FIX APPLIED**: Backspace now returns to info (not browser). |
+| 23 | Press `n` on replace prompt → cancels, returns to info page | [ ] | [ ] | Same fix as #22. |
+| 24 | Press `y` on replace prompt → new item plays, old session stops | [ ] | [ ] | |
+| 25 | Replace prompt wording: "Already playing" / "Play this instead?" / "y play" | [x] | [ ] | Harness verified. |
+| 26 | Info page Progress shows live IPC position (not cached) | [x] | [ ] | |
+| 27 | Info page Progress auto-updates without cursor movement | [ ] | [ ] | **FIX APPLIED**: added self.refresh() in poll. Needs re-test. |
+| 28 | Only one Progress line visible (no duplicate) | [x] | [ ] | **FIX APPLIED**: regex fixed. Needs re-test. |
+| 29 | Press `w` on info page → web URL overlay, stays visible | [x] | [ ] | **FIX APPLIED**: render_info() guards on _web_url_visible. |
+| 30 | Press `w` on Now Playing page → overlay stays visible 3+ seconds | [x] | [ ] | **FIX APPLIED**: _render_now_playing() and _poll_info() skip when overlay visible. |
+| 31 | Press `w` → any key closes overlay | [x] | [ ] | |
+| 32 | Press `Space` → toggles pause/play | [x] | [ ] | |
+| 33 | Press `,` → seeks -10s | [x] | [ ] | |
+| 34 | Press `.` → seeks +10s | [x] | [ ] | |
+| 35 | Press `Ctrl+B` → quality cycles, flash message | [x] | [ ] | |
+| 36 | Press `Ctrl+B` → video does NOT restart (position preserved) | [ ] | [ ] | **FIX APPLIED**: seek back after loadfile_replace. Needs re-test. |
+| 37 | Press `Ctrl+K` → stops playback | [x] | [ ] | |
+| 38 | Press `Ctrl+P` → playback control menu (not Textual palette) | [x] | [ ] | **FAIL** — Textual palette may still intercept. Needs real-keyboard test. |
+| 39 | Bottom bar shows `np: <title> – <MM:SS>` format | [x] | [ ] | |
+| 40 | Long filenames truncated to ~40 chars + SxxExx | [x] | [ ] | |
+| 41 | Bottom bar updates live with IPC position | [x] | [ ] | |
+| 42 | Info page backspace → returns to browser | [x] | [ ] | |
+| 43 | Info → play → backspace from Now Playing → returns to info | [x] | [ ] | |
+| 44 | Now Playing backspace → returns to previous page | [x] | [ ] | |
+| 45 | Ctrl+G → mpv log with line numbers | [x] | [ ] | |
+| 46 | MpV log scroll position indicator when scrollable | [x] | [ ] | |
+| 47 | Open app, play item → Now Playing auto-shows | [x] | [ ] | |
