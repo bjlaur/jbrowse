@@ -90,14 +90,21 @@ Known issues:
 - Line numbers added to mpv log page.
 - Scroll position indicator (█░ bar + percentage) shown when content is scrollable.
 
+### Harness optimization (branch: `optimize-full-harness`)
+- Reduced `settle()` pause from 1.0s → 0.3s
+- Added `quick_settle()` for views that just pressed a key (skips full style cache clear)
+- Reduced Ctrl+X theme cycle pause from 0.2s → 0.1s
+- Full harness: **1m24s → 31s (62% faster)**, all 31 captures pass
+- Only cosmetic diffs (CSS class ID randomization) vs baseline
+
 Testing:
 - Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
-- Passed `python tools/svg_screenshot_poc.py --item otter` (28 screenshots, all pass).
+- Passed `python tools/svg_screenshot_poc.py --item otter` (31 screenshots, all pass in ~31s).
 - Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
 - Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
 - Help page updated with all new hotkeys (Space, comma, period, Ctrl+B, Ctrl+N, Ctrl+P).
-- New harness captures: mpv-log-scrolled, info-playing, now-playing-quality, playback-control-menu, ctrl-k-stop, ctrl-p-from-browser, space-pause, seek-comma-period, bottom-bar-format, bottom-bar-long-name, replace-n-to-info, info-backspace-to-browser, now-playing-backspace-to-info, web-url-info-overlay, web-url-now-playing-overlay.
-- Updated screenshot harness: 28 total captures; FixtureClient has state.deviceid; fake toggle_pause toggles state.
+- New harness captures: mpv-log-scrolled, info-playing, now-playing-quality, playback-control-menu, ctrl-k-stop, ctrl-p-from-browser, space-pause, seek-comma-period, bottom-bar-format, bottom-bar-long-name, replace-n-to-info, info-backspace-to-browser, now-playing-backspace-to-info, web-url-info-overlay, web-url-now-playing-overlay, ctrl-b-bitrate, info-progress-auto-update.
+- Updated screenshot harness: 31 total captures; FixtureClient has state.deviceid; fake toggle_pause toggles state.
 
 Manual release check:
 - Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed).
