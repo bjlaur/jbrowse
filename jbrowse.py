@@ -2895,6 +2895,10 @@ class BrowseApp(App[object]):
             # Don't overwrite the web URL overlay; just re-arm the timer
             self.set_timer(1.0, self._poll_now_playing)
             return
+        if getattr(self, "_jump_to_time_visible", False):
+            # Don't overwrite the jump-to-time overlay; just re-arm the timer
+            self.set_timer(1.0, self._poll_now_playing)
+            return
         self._render_now_playing()
         self.set_timer(1.0, self._poll_now_playing)
 
@@ -2936,6 +2940,8 @@ class BrowseApp(App[object]):
 
     def _render_now_playing(self) -> None:
         if getattr(self, "_web_url_visible", False):
+            return
+        if getattr(self, "_jump_to_time_visible", False):
             return
         self.focus_overlay()
         text = Text()
