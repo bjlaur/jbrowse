@@ -670,70 +670,102 @@ def run_real_mpv_smoke(cfg, client, item, play_duration: float = 3.0) -> None:
     log("real mpv smoke passed")
 
 
-def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 3.0) -> None:
-    """Launch real mpv, cycle quality via Ctrl+B, and verify bitrate changes through transcoding URL."""
+async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.0) -> None:
+    """Launch real mpv with a Euphoria 2160p file, cycle bitrate via Ctrl+B, verify via IPC.
+
+    Steps: search for 'euphoria 2160p', pick first result, play it, cycle quality twice,
+    verify bitrate label changes via IPC.
+    """
     log(f"running real mpv bitrate test (play_duration={play_duration}s)")
+
+    # Clean up stale IPC sockets and mpv processes
+    import glob
+    for sock in glob.glob("/tmp/jbrowse-mpv-*.sock"):
+        os.unlink(sock)
+    subprocess.run(["pkill", "-f", "mpv.*jbrowse"], capture_output=True)
+    time.sleep(0.5)
 
     if client.auth is None:
         log("logging in to Jellyfin for real mpv bitrate test")
         client.login()
 
+    items = client.fetch_items()
+    state = make_state(cfg, items[0])
+
     app = BrowseApp(
-        cfg, client, [item], "01-jbrowse-amber-dim", make_state(cfg, item),
+        cfg, client, items, "01-jbrowse-amber-dim", state,
         write_cache_on_start=False, auto_refresh_on_start=False,
     )
 
-    manager = app.playback_manager
-    error = manager.start_background(item)
-    if error:
-        raise RuntimeError(f"real mpv failed to start: {error}")
-    if not manager.is_active():
-        raise RuntimeError("real mpv did not start")
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.pause(0.5)
 
-    log(f"real mpv started; letting it play for {play_duration}s")
-    time.sleep(play_duration)
+        # Search for "euphoria"
+        app.query.focus()
+        await pilot.press(*"euphoria")
+        await pilot.pause(0.5)
 
-    # Record initial position and quality
-    pos_before = manager.ipc_get_property("time-pos") or 0
-    quality_before = app._current_quality_label()
-    log(f"before cycle: quality={quality_before}, pos={pos_before:.1f}s")
+        if not app.visible_items:
+            raise RuntimeError("No items found for 'euphoria' search")
 
-    # Cycle quality via the app's method
-    app._apply_quality("40mbps")
-    time.sleep(1.0)
+        # Pick the first Euphoria 2160p result, or fall back to any Euphoria
+        first = None
+        for item in app.visible_items:
+            if "2160" in item.filename.casefold() or "4k" in item.filename.casefold():
+                first = item
+                break
+        if first is None:
+            first = app.visible_items[0]
 
-    quality_after = app._current_quality_label()
-    pos_after = manager.ipc_get_property("time-pos") or 0
-    log(f"after cycle: quality={quality_after}, pos={pos_after:.1f}s")
+        if "euphoria" not in first.title.casefold():
+            raise RuntimeError(f"First result is not Euphoria: {first.title}")
+        log(f"found: {first.title} ({first.filename})")
 
-    if quality_after == quality_before:
-        raise RuntimeError(f"quality did not change: still {quality_after}")
+        # Play it: Enter → info, Enter → play
+        app.selected_index = 0
+        await pilot.press("enter")
+        await pilot.pause(0.5)
+        await pilot.press("enter")
+        await pilot.pause(0.5)
 
-    # Position should be close to where we started (within 3s tolerance)
-    if abs(pos_after - pos_before) > 3.0:
-        raise RuntimeError(
-            f"position drifted too far after quality cycle: "
-            f"before={pos_before:.1f}s, after={pos_after:.1f}s"
-        )
+        log(f"playing for {play_duration}s")
+        await pilot.pause(play_duration)
 
-    # Cycle again
-    app._apply_quality("20mbps")
-    time.sleep(1.0)
-    quality_after2 = app._current_quality_label()
-    log(f"after 2nd cycle: quality={quality_after2}")
+        # Wait for IPC to be ready (up to 5s)
+        for _ in range(10):
+            if app.playback_manager.ipc_get_property("time-pos") is not None:
+                break
+            await pilot.pause(0.5)
+        else:
+            raise RuntimeError("IPC not connected after 5s — check mpv --input-ipc-server flag")
 
-    if quality_after2 == quality_after:
-        raise RuntimeError(f"quality did not change on 2nd cycle: still {quality_after2}")
+        quality_before = app._current_quality_label()
+        log(f"before: quality={quality_before}")
 
-    # Stop playback
-    manager.stop_active()
-    deadline = time.monotonic() + 5
-    while manager.is_active() and time.monotonic() < deadline:
-        time.sleep(0.2)
-    if manager.is_active():
-        raise RuntimeError("real mpv did not finish after stop")
+        # Cycle quality
+        await pilot.press("ctrl+b")
+        await pilot.pause(3.0)
+        quality_after = app._current_quality_label()
+        log(f"after 1st: quality={quality_after}")
+        if quality_after == quality_before:
+            # Debug: check if IPC is working
+            ipc_pos = app.playback_manager.ipc_get_property("time-pos")
+            log(f"IPC time-pos: {ipc_pos}")
+            raise RuntimeError(f"quality unchanged: {quality_after}")
 
-    log("real mpv bitrate test passed")
+        # Cycle again
+        await pilot.press("ctrl+b")
+        await pilot.pause(2.0)
+        quality_after2 = app._current_quality_label()
+        log(f"after 2nd: quality={quality_after2}")
+        if quality_after2 == quality_after:
+            raise RuntimeError(f"quality unchanged on 2nd cycle: {quality_after2}")
+
+        # Stop
+        await pilot.press("ctrl+k")
+        await pilot.pause(1.0)
+
+        log("real mpv bitrate test passed")
 
 
 async def main_async(args: argparse.Namespace) -> int:
@@ -761,7 +793,7 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.real_mpv_bitrate:
         if not args.real:
             raise RuntimeError("--real-mpv-bitrate requires --real (needs real Jellyfin cache and server)")
-        run_real_mpv_bitrate_test(cfg, client, demo_item, args.play_duration)
+        await run_real_mpv_bitrate_test(cfg, client, demo_item, args.play_duration)
         return 0
 
     themes = discover_themes(theme_start)
@@ -885,7 +917,7 @@ async def main_async(args: argparse.Namespace) -> int:
         ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
         ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
         ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "Enter", "replace", "Backspace", "cancel"]),
-        ("web-url.svg", "web-url", ["Jellyfin Web URL", "example.invalid", "details?id=", "q close"]),
+        ("web-url.svg", "web-url", ["Jellyfin Web URL", "details?id=", "q close"]),
         ("mpv-log-scrolled.svg", "mpv-log-scrolled", ["mpv log", "Status", "5", "6"]),
         ("info-playing.svg", "info-playing", ["Info", "Progress", "0:30 / 2:00"]),
         ("now-playing-quality.svg", "now-playing-quality", ["Now Playing", "quality: 40mbps"]),

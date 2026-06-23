@@ -1813,7 +1813,7 @@ class BrowseApp(App[object]):
             # Seek back to the saved position after a short delay
             # to let mpv load the new file
             def _seek_back():
-                time.sleep(0.5)
+                time.sleep(1.5)
                 self.playback_manager.seek_to(ipc_pos)
             threading.Thread(target=_seek_back, daemon=True).start()
             self._quality_flash = f"quality: {quality}"
