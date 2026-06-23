@@ -1,7 +1,9 @@
 # Next Release Plan — Post-IPC Features (0.0.35)
 
 ## Context
-IPC feature branch (0.0.34) is nearly complete. The other agent is fixing `--real-mpv-bitrate` test issues. This plan covers the next release (0.0.35) with features that are independent of the IPC work.
+IPC feature branch (0.0.34) is released. This plan covers the next release (0.0.35) with larger features that need discussion or significant effort.
+
+See `docs/release-0.0.35/ipc-fastfollower-feature.md` for small fixes that can be done immediately.
 
 ## Release Candidates (Prioritized)
 
@@ -10,7 +12,7 @@ IPC feature branch (0.0.34) is nearly complete. The other agent is fixing `--rea
 **Effort**: Small
 
 **Current**: "Already playing" / "Play this instead?" / "Enter → replace" / "Backspace → cancel"
-**Problem**: User doesn't like the wording. Too verbose.
+**Problem**: User doesn't like the wording. Needs discussion before implementing.
 
 **Proposed approaches**:
 - Minimal: Just show the two items and "Enter replace  /  Backspace cancel"
@@ -43,64 +45,23 @@ IPC feature branch (0.0.34) is nearly complete. The other agent is fixing `--rea
 
 ---
 
-### 3. Better Help Text / Key Map Cleanup
-**Priority**: MEDIUM
-**Effort**: Small (~50 lines reorganization)
-
-**Current**: Flat list of all hotkeys
-**Proposed sections**: Browsing, Search, Info, Playback, Themes, App
-
-**Also**: `Ctrl+Shift+X` reverse theme cycling may not be reliably distinguishable from `Ctrl+X` in terminals. Consider alternatives.
-
----
-
-### 4. README Screenshot Update
-**Priority**: MEDIUM
-**Effort**: Small
-
-Choose best 10 screenshots from 31+ harness captures. Update `README.md`.
-
----
-
-### 5. Server-Side Safety Guard
-**Priority**: DONE (already implemented)
-
-`post_server_mutation()` checks endpoint against `SERVER_MUTATION_OPERATIONS`. Future features must register here.
-
----
-
-### 6. Bottom Bar Progress Bar (Deferred)
-**Priority**: LOW (user said defer)
-**Effort**: Small (if approved)
-
-Add visual `█░` progress bar to bottom status bar during playback.
-
----
-
-### 7. Jump to Time Feature (Other Agent)
-**Priority**: DONE (other agent implemented)
-
-Press `j` on Now Playing, type MM:SS or HH:MM:SS, Enter to jump via IPC `seek_to()`.
-
----
-
-### 8. File Splitting (Architectural)
+### 3. File Splitting (Architectural)
 **Priority**: LOW (do after features stabilize)
 **Effort**: Large
 
-Split `jbrowse.py` (4025 lines) into modules. See `code-split-analysis.md` for detailed plan.
+Split `jbrowse.py` (~4030 lines) into modules. See `code-split-analysis.md` for detailed plan.
 
 ---
 
-### 9. Test Harness Refactoring
+### 4. Test Harness Refactoring
 **Priority**: MEDIUM (enables future testing)
 **Effort**: Medium
 
-Split `svg_screenshot_poc.py` (1060 lines) into modules. See `test-harness-analysis.md` for detailed plan.
+Split `svg_screenshot_poc.py` (~1085 lines) into modules. See `test-harness-analysis.md` for detailed plan.
 
 ---
 
-### 10. Build Files / Arch Packaging
+### 5. Build Files / Arch Packaging
 **Priority**: LOW (final step)
 **Effort**: Medium
 
@@ -109,13 +70,19 @@ Split `svg_screenshot_poc.py` (1060 lines) into modules. See `test-harness-analy
 ---
 
 ## Recommended Execution Order
-1. Replace prompt wording (small, user-requested)
+1. Replace prompt wording (small, user-requested — needs discussion first)
 2. Audio picker (medium, natural next feature)
-3. Help text cleanup (small)
-4. README screenshot update (small)
-5. Test harness refactoring (medium, enables future testing)
-6. File splitting (large, architectural)
-7. Build/packaging (final step)
+3. Test harness refactoring (medium, enables future testing)
+4. File splitting (large, architectural)
+5. Build/packaging (final step)
+
+## Done (moved to 0.0.34 or fast follower)
+
+- Server-side safety guard — done in 0.0.34
+- Jump to time feature — done in 0.0.34
+- README screenshot update — done in 0.0.34
+- Better help text / key map cleanup — moved to fast follower
+- Bottom bar progress bar — moved to fast follower
 
 ## Verification Standards
 Every feature must pass:

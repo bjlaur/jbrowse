@@ -69,7 +69,7 @@ Not implemented yet:
 
 These screenshots use the committed fictional fixture library, not a real Jellyfin server or media collection.
 
-See [THEMES.md](THEMES.md) for the complete 23-theme gallery.
+See [docs/themes/README.md](docs/themes/README.md) for the complete 23-theme gallery.
 
 ### Now Playing
 

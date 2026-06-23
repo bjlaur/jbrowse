@@ -94,15 +94,14 @@ Shift+Enter  direct playback
 - Removed: mpv-log, refreshing (ranked lowest in analysis)
 
 ### Bottom bar progress bar
-- After manual review: consider adding a visual `█░` progress bar to the bottom status bar during playback (not just text "playing: Title 1:23")
+- Add a visual `█░` progress bar to the bottom status bar during playback (not just text "playing: Title 1:23")
 - Now Playing page already has a full bar; this would be a compact version for the browser bottom bar
-- Defer until after manual testing confirms it's useful
+- Moved to fast follower (`docs/release-0.0.35/ipc-fastfollower-feature.md`)
 
 ### Server-side safety guard
-- Keep track of code paths that can mutate Jellyfin/server state
+- ✅ Implemented in 0.0.34: `post_server_mutation()` checks endpoint against `SERVER_MUTATION_OPERATIONS`
 - Playback session reporting is the only currently allowed server mutation
-- Future metadata edits, deletes, favorites, manual played/unplayed toggles should be treated as server-side mutations
-- Keep mutation-capable features behind explicit config/checks
+- Future features must register here before mutating server state
 
 ### Audio picker
 - After subtitle picker and mpv IPC, add audio track selection

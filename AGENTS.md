@@ -75,7 +75,7 @@ input-ipc-server   # used by PlaybackManager for IPC
 
 ## Release Notes And Roadmap Hygiene
 
-- Keep completed roadmap items in `todo.md` marked as done/crossed out instead of deleting them.
+- Keep completed roadmap items in `TODO.md` marked as done/crossed out instead of deleting them.
 - After each release, add a small `CHANGELOG.md` entry.
 - Each changelog entry should include a very small testing summary and note any important manual test gap.
 - When the user says to commit and/or push, treat that request as a Git-only operation. Do not make further file changes in that step. If a file change is still needed, stop and ask: "I just made my last changes before commit/push. Good to continue?"
@@ -85,16 +85,17 @@ input-ipc-server   # used by PlaybackManager for IPC
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full development and release checklist.
 
-## Near-Term Roadmap
+## Near-Term Roadmap (0.0.35)
 
-1. Stabilize the promoted 0.0.34 baseline.
-2. Server-side safety guard.
-3. Audio picker.
-4. Better help text / key map cleanup.
-5. Split into modules (later, after architecture stabilizes).
-6. Build/packaging/Arch PKGBUILD.
+1. ~~Stabilize the promoted 0.0.34 baseline~~ — ✅ Released
+2. ~~Server-side safety guard~~ — ✅ Done
+3. Small fixes — see `docs/release-0.0.35/ipc-fastfollower-feature.md`
+4. Audio picker — see `docs/future-release/release-plan.md`
+5. Replace prompt wording revision — needs user discussion
+6. Split into modules (later, after architecture stabilizes)
+7. Build/packaging/Arch PKGBUILD
 
-Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.
+Keep those phases separate.
 
 ## Docs Structure (IMPORTANT for merges)
 
@@ -102,7 +103,7 @@ The `docs/` directory was reorganized into release-based subdirectories:
 
 ```
 docs/
-  release-0.0.34/       ← Everything for the 0.0.34 IPC Features release
+  release-0.0.34/       ← Historical: 0.0.34 IPC Features release (do not modify)
     release-plan.md
     implementation-plan.md
     implementation-report.md
@@ -110,7 +111,10 @@ docs/
     retest-checklist.md
     claude-didn't-listen.md
     screenshot-analysis.md
-  future-release/       ← Planning docs for next release (subject to change)
+    for-next-release.md
+  release-0.0.35/       ← Current: small fast-follower fixes
+    ipc-fastfollower-feature.md
+  future-release/       ← Planning for larger 0.0.35+ features
     release-plan.md
     code-split-analysis.md
     test-harness-analysis.md
@@ -159,4 +163,4 @@ docs/
 - Bottom bar poll: calls `update_bottom_status()` (page-aware) instead of `bottom_status_text()` directly.
 - Now Playing playback-end: returns to `previous_page` (info) instead of hardcoded browser.
 - Scroll indicator: text-based `[####----] 42%` (renders in SVG export, unlike `█░` block chars).
-- Next: Server-side safety guard, audio picker, help text cleanup, replace prompt wording revision.
+- Next: Fast follower fixes (`docs/release-0.0.35/`), then larger features (`docs/future-release/`).
