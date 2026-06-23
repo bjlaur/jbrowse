@@ -71,6 +71,7 @@ input-ipc-server   # used by PlaybackManager for IPC
 - Use `--ipc-only` to run *just* the IPC smoke test without generating any screenshots. Fast path for playback/IPC work.
 - `--all-themes` is on-demand only — run it when the theme gallery actually needs updating (release time, new themes, UI changes). Never run it as a routine check.
 - Use `--view <name>` to run a single capture for fast iteration during development (e.g. `--view now-playing`, `--view replace-prompt`, `--view playback-control`).
+- **Always run a `--real` test if you write one.** If you add a `--real-mpv` or `--real-mpv-bitrate` test, run it with `--real` before committing. Fake IPC tests are not sufficient for playback/IPC features — real mpv behavior differs.
 
 ## Release Notes And Roadmap Hygiene
 
