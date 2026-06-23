@@ -118,7 +118,7 @@ Known issues:
 
 ### Playback control menu (Ctrl+P)
 - Global overlay accessible from any page.
-- `use_command_palette = False` set as class attribute to prevent Textual command palette conflict.
+- `ENABLE_COMMAND_PALETTE = False` set as class attribute to prevent Textual command palette conflict.
 - Shows current playback state: title, position/duration, quality.
 - Key actions: Space pause, `,`/`. seek, Ctrl+B quality, Ctrl+K stop, Ctrl+N now playing.
 - `q`/`Escape`/`backspace` closes and returns to browser.

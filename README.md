@@ -40,6 +40,8 @@ Current features:
 - **Replace playback prompt** — "Already playing" confirmation overlay when playing over active playback.
 - **Static bitrate selection** (Ctrl+B) — cycle quality presets via transcoding.
 - **Web URL hotkey** (`w`) — show Jellyfin web URL overlay from info or Now Playing page.
+- **Jump to time** (`j` on Now Playing) — seek to MM:SS or HH:MM:SS via IPC.
+- **Bottom bar live update** — playback position updates every second without cursor movement.
 - **MpV log line numbers** — line numbers and scroll position indicator on the mpv log page.
 - Configurable `mpv_cmd` playback template.
 - `mpv` command/output viewer with `Ctrl+G`.
@@ -214,7 +216,7 @@ Ctrl+B       cycle quality / bitrate
 Ctrl+N       now playing page
 Ctrl+X       cycle theme and save it to jbrowse.conf
 Ctrl+L       show help
-Ctrl+L       show help
+?            show help
 Ctrl+C       quit (stops active mpv first)
 ```
 
@@ -268,6 +270,7 @@ Auto-opens when playback starts. Truncated title shown in bottom bar (e.g. `np: 
 q/backspace  return to previous page (browser or info)
 Space        pause/play toggle
 , / .        seek -10s / +10s
+j            jump to time overlay (MM:SS or HH:MM:SS)
 s            open subtitle picker
 w            show Jellyfin web URL for this item
 Ctrl+B       cycle quality / bitrate

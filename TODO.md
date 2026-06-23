@@ -42,7 +42,7 @@ Shift+Enter  direct playback
 
 ## Manual Testing Fixes (0.0.34 re-test round) — ALL COMPLETE
 
-- [x] Ctrl+P: moved `use_command_palette = False` to class level to prevent Textual command palette
+- [x] Ctrl+P: set `ENABLE_COMMAND_PALETTE = False` at class level to prevent Textual command palette
 - [x] Replace prompt: rewording to "Already playing" / "Play this instead?" / "y play  n cancel"
 - [x] MpV log: added line numbers and scroll position indicator (█░ bar + percentage)
 - [x] Now Playing backspace: returns to `previous_page` instead of hardcoded "browser"
@@ -54,7 +54,7 @@ Shift+Enter  direct playback
 - [x] Replace prompt `n`: returns to info page instead of browser
 - [x] Web URL overlay: render_info() and _render_now_playing() guard on _web_url_visible
 - [x] Info page Progress regex: fixed from `Progress\s*:` to `Progress\s` (add_kv has no colon)
-- [x] Harness: 28 captures, all pass; new views for all fixed items
+- [x] Harness: 31 captures, all pass; new views for all fixed items
 - [x] Created ipc-retest-checklist.md with pass/fail status from manual testing
 - [x] Created claude-didn't-listen.md report documenting missed harness tests
 - [x] Bottom bar live poll: `_start_bottom_bar_poll()` timer updates widget every second

@@ -106,7 +106,7 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - `playback_payload()` reads `pause` state from IPC.
 - Bottom status bar shows live playback state: `np: <title> – <MM:SS>`.
 - Each playback writes a private log to `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff`.
-- `use_command_palette = False` set as class attribute on `BrowseApp` to prevent Textual from intercepting Ctrl+P.
+- `ENABLE_COMMAND_PALETTE = False` set as class attribute on `BrowseApp` to prevent Textual from intercepting Ctrl+P.
 - Now Playing page: backspace/q returns to `previous_page` (not hardcoded browser).
 - Now Playing page: Ctrl+B shows 3-second quality flash message on-page.
 - Now Playing page: web URL overlay (w key) not overwritten by 1s poll timer.
@@ -122,6 +122,6 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - Progress display: uses Jellyfin runtime (`item.runtime_ticks`) for total time instead of mpv IPC duration (which can differ during transcoding).
 - Help key: F1 removed (Textual intercepts it). Use Ctrl+L or ? (? may not work in all terminals).
 - No F keys policy: F1–F12 all intercepted by Textual, don't use them.
-- Harness: 29+ captures including new views for all fixed items. --real-mpv-bitrate test added.
-- Completed: All IPC feature phases (1–6) + playback control menu + all manual testing re-test fixes.
-- Next: Server-side safety guard, audio picker, help text cleanup, jump to time feature.
+- Harness: 31 captures including all fixed items. `--real-mpv-bitrate` and `--real-mpv-jump` tests pass.
+- Completed: All IPC feature phases (1–6) + playback control menu + all manual testing re-test fixes + jump-to-time + real IPC test fixes.
+- Next: Server-side safety guard, audio picker, help text cleanup, replace prompt wording revision.

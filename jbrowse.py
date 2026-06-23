@@ -74,7 +74,7 @@ except ImportError:
 
 APP_NAME = "jbrowse"
 CLIENT_NAME = "jbrowse"
-CLIENT_VERSION = "0.0.33"
+CLIENT_VERSION = "0.0.34"
 TICKS_PER_SECOND = 10_000_000
 DEFAULT_VISIBLE_ITEMS = 300
 CACHE_VERSION = 2
@@ -2952,7 +2952,7 @@ class BrowseApp(App[object]):
 
         # Header
         text.append("Now Playing\n", style="bold")
-        text.append("q/backspace browser | Space pause | ,/. seek | s subtitles | w web | Ctrl+G mpv log\n")
+        text.append("q/backspace browser | Space pause | ,/. seek | j jump | s subtitles | w web | Ctrl+G mpv log\n")
         text.append("\n")
 
         if not playback["active"] or pm_item is None:
@@ -3241,16 +3241,19 @@ class BrowseApp(App[object]):
         help_text.append("Ctrl+T       toggle title/filename display and search\n")
         help_text.append("Ctrl+O       toggle ascending/descending sort\n")
         help_text.append("Info: q/backspace close, Enter play, s subtitles, w web, n now playing, ←/→ episode, [/] season\n")
+        help_text.append("w            show Jellyfin web URL (info/now playing)\n")
+        help_text.append("j            jump to time overlay (now playing)\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
         help_text.append("Ctrl+G       show mpv output\n")
         help_text.append("Ctrl+K       stop active mpv playback\n")
         help_text.append("Space        pause/play toggle (when playing)\n")
-        help_text.append(", / .        seek -10s / +10s (when playing)\n")
+        help_text.append(", / .        seek -10s /+10s (when playing)\n")
         help_text.append("Ctrl+B       cycle quality / bitrate\n")
         help_text.append("Ctrl+N       now playing page\n")
         help_text.append("Ctrl+P       playback control menu\n")
         help_text.append("Ctrl+X       next theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
+        help_text.append("?            show this help\n")
         help_text.append("Ctrl+C       quit (stops mpv first)\n")
         help_text.append("\n")
         help_text.append("Press any key to close this help.", style="dim")
