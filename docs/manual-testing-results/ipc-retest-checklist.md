@@ -1,8 +1,24 @@
 # IPC Re-test Checklist — 0.0.34
 
+## ⚠️ Special Notes for Agents
+
+**Read this section before making any changes.**
+
+- **F1 is broken**: Do NOT use F1 for help. Textual intercepts it and opens the command palette. Use `Ctrl+L` or `?` instead. See AGENTS.md for the no-F-keys policy.
+- **Ctrl+H is backspace**: In terminals, Ctrl+H sends `\x08` (backspace). Don't use it for help or any other binding.
+- **Replace prompt**: The other agent is handling the same-item display (showing current vs new item titles). Don't modify `_render_replace_prompt()` without coordinating.
+- **Web URL overlay**: The `_web_url_visible` guard is in `render_info()` and `_render_now_playing()`. Don't remove these guards — they prevent the poll timer from overwriting the overlay.
+- **Info page Progress poll**: Uses `self.refresh()` in `_poll_info()` to force screen update. If you change the timer interval, keep the `self.refresh()` call.
+- **Harness captures**: When adding new captures, update BOTH the `view_map` (for `--view` single-run) AND the `captures` list (for full run). Run `python tools/svg_screenshot_poc.py --item otter` to verify all captures pass.
+- **Real-mpv tests**: Use `--real --real-mpv-bitrate` for bitrate cycling tests. Use `--real --real-mpv` for basic IPC smoke tests. These require a logged-in Jellyfin cache.
+
+---
+
 ## How to Use This Document
 
 ### For Agents (AI):
+- **Read the Special Notes above before doing anything.**
+- **Harness**: Check `[x]` if a harness capture exists and passes. Check `[ ]` if no harness test exists.
 - **Harness**: Check `[x]` if a harness capture exists and passes. Check `[ ]` if no harness test exists.
 - **Manual**: Leave `[ ]` for the user to test. Do NOT check manual tests yourself.
 - **Why no harness?**: Explain why the harness can't test this (be honest — "didn't add a capture" is a valid reason).
