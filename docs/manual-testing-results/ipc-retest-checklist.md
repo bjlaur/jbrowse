@@ -132,7 +132,7 @@
 | 49 | Ctrl+K from Now Playing → returns to info page | [ ] | [ ] | Didn't add a harness capture | | **FIX APPLIED**: Ctrl+K handler now checks `self.page == "now_playing"` and returns to `previous_page`. Needs re-test. |
 | 50 | Replace prompt text shows "Enter → replace" / "Backspace → cancel" | [x] | [ ] | — | | **FIX APPLIED**: updated text format. Harness capture updated to match. Needs re-test. |
 | 51 | Ctrl+B bitrate cycles through presets | [x] | [ ] | — | | **FIX APPLIED**: `--real-mpv-bitrate` test + `ctrl-b-bitrate` fake capture. Needs `--real --real-mpv-bitrate` for full test. |
-| 52 | Ctrl+B quality change preserves playback position | [ ] | [ ] | Can't verify with fake IPC | | **FIX APPLIED**: seek back after loadfile_replace. Run `--real --real-mpv-bitrate` to verify. Needs re-test. |
+| 52 | Ctrl+B quality change preserves playback position | [ ] | [ ] | Use --real --real-mpv to verify | | **FIX APPLIED**: seek back after loadfile_replace. Run `--real --real-mpv-bitrate` to verify. Needs re-test. |
 
 ---
 
