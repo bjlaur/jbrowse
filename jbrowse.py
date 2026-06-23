@@ -1676,8 +1676,13 @@ class BrowseApp(App[object]):
         self.start_playback(self.info_item)
 
     def start_playback(self, item: MediaItem) -> None:
-        # If something is already playing, show replace confirmation
+        # If something is already playing, check if it's the same item
         if self.playback_manager.is_active():
+            current = self.playback_manager.item
+            if current is not None and current.id == item.id:
+                # Same item — just open Now Playing instead of replace prompt
+                self.open_now_playing()
+                return
             self._pending_replace_item = item
             self._show_replace_prompt()
             return
@@ -1973,6 +1978,10 @@ class BrowseApp(App[object]):
             else:
                 self.refresh_message = "no active mpv playback"
             self.update_bottom_status()
+            if self.page == "now_playing":
+                self._now_playing_poll_stop = True
+                self.page = self.previous_page
+                self.render_items()
             event.stop()
             return
 

@@ -54,8 +54,8 @@
 | 33 | Press `,` → seeks -10s | [x] | [ ] | — | I already tested.. why am I being asked to test again. | Skip — carried over from round 1, already passed. |
 | 34 | Press `.` → seeks +10s | [x] | [ ] | — | I already tested.. why am I being asked to test again. | Skip — carried over from round 1, already passed. |
 | 35 | Press `Ctrl+B` → quality cycles, flash message | [x] | [ ] | — | it works but.. Progress: 0:09 / 0:32. The progress is using the time from mpv instead of the time from jellyfin. Because the file is not transcoded all at once we can't do that. This brings up another feature we need: jump to time. Bring up a window where you can either type in a time, or use your keyboard to select from a bar of some sort. This way we can jump to a time that isn't yet loaded in mpv. It'll restart mpv to this new stream. | Will fix: add "jump to time" feature to TODO. Investigate using Jellyfin runtime for progress display. |
-| 36 | Press `Ctrl+B` → video does NOT restart (position preserved) | [ ] | [ ] | Didn't add a harness capture | **FIX APPLIED**: seek back after loadfile_replace. This needs a harness. You can get the bitrate from the IPC to make sure it's working. Make sure you test files with large enough bitrate that you trigger the transcoding. | Will fix: add harness capture that verifies bitrate changes via IPC. |
-| 37 | Press `Ctrl+K` → stops playback | [x] | [ ] | — | uhm this is going back to browse... why.. it should just stop playback or go back to info from now playing. | Will fix: Ctrl+K from Now Playing should return to info page, not browser. |
+| 36 | Press `Ctrl+B` → video does NOT restart (position preserved) | [x] | [ ] | — | **FIX APPLIED**: seek back + `--real-mpv-bitrate` test added. Cycles quality twice, verifies bitrate changes and position preserved. Run with `--real --real-mpv-bitrate`. | Needs manual re-test. |
+| 37 | Press `Ctrl+K` → stops playback, returns to info from Now Playing | [x] | [ ] | — | **FIX APPLIED**: Ctrl+K from Now Playing now returns to previous_page (info) instead of browser. | Needs manual re-test. |
 | 38 | Press `Ctrl+P` → playback control menu (not Textual palette) | [x] | [ ] | — | | Needs real-keyboard test. |
 | 39 | Bottom bar shows `np: <title> – <MM:SS>` format | [x] | [x] | — | | — |
 | 40 | Long filenames truncated to ~40 chars + SxxExx | [x] | [ ] | — | uhhhh can you give me a real world example so I can test this? And how do I test this? | Example: `Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv` → should show as `Rick and Morty – S09E02` in bottom bar. Test by playing any file with a long filename. |
@@ -71,7 +71,7 @@
 
 ## Other Issues
 
-- **Enter on same file**: If you press Enter on the same file you're already playing, it should just take you back to Now Playing page (not show replace prompt).
+- **Enter on same file**: If you press Enter on the same file you're already playing, it should just take you back to Now Playing page (not show replace prompt). **FIX APPLIED**: `start_playback()` now checks if item ID matches current and opens Now Playing directly.
 
 ---
 
