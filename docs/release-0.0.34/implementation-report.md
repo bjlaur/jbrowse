@@ -147,8 +147,8 @@ Added 4 new captures: now-playing, playback-control, replace-prompt, web-url. Ad
 | `TODO.md` | Complete rewrite — only pending items |
 | `CHANGELOG.md` | 0.0.34 section with all phases + manual release check |
 | `README.md` | Complete rewrite — version, features, controls, config |
-| `docs/plans/ipc-features.md` | Implementation plan |
-| `docs/reports/ipc-features-report.md` | This report |
+| `docs/release-0.0.34/implementation-plan.md` | Implementation plan |
+| `docs/release-0.0.34/implementation-report.md` | This report |
 
 ---
 

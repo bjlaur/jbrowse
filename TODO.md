@@ -80,16 +80,14 @@ Shift+Enter  direct playback
 - Panel title is "Replace Playback" — could also be improved
 
 ### Jump to time feature
-- ~~New feature needed: allow user to jump to a specific time in the current file~~
-- ✅ Implemented: press `j` on Now Playing page, type MM:SS or HH:MM:SS, Enter to jump via IPC seek_to()
+- ✅ Implemented for 0.0.34: press `j` on Now Playing page, type MM:SS or HH:MM:SS, Enter to jump via IPC seek_to()
 - Overlay guards prevent poll timer from overwriting the jump-to-time UI
 - `--real-mpv-jump` test verifies real IPC seek works correctly
 
 ### README screenshot update
-- Next time we do a README fixup, choose the best 10 screenshots from the 28 harness captures
-- Current 8 screenshots in `docs/screenshots/` are all still there (browser, after-ctrl-x, help, info, mpv-log, refreshing, search, subtitles)
-- New candidates to consider: now-playing, playback-control, replace-prompt, mpv-log-scrolled, info-playing, bottom-bar-format, web-url, ctrl-k-stop, space-pause, seek-comma-period, etc.
-- Update README to reference the selected screenshots
+- ✅ Done for 0.0.34: Selected best 10 from 31 harness captures per `docs/release-0.0.34/screenshot-analysis.md`
+- Current 10 screenshots: browser, after-ctrl-x, help, info, search, subtitles, now-playing, playback-control, jump-to-time, replace-prompt
+- Removed: mpv-log, refreshing (ranked lowest in analysis)
 
 ### Bottom bar progress bar
 - After manual review: consider adding a visual `█░` progress bar to the bottom status bar during playback (not just text "playing: Title 1:23")

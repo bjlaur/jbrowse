@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-## 0.0.34 - 2026-06-23 — IPC feature branch (in progress)
+## 0.0.34 - 2026-06-23 — IPC Features
 
 ### Agent 1 — Manual testing fixes round 2
 
@@ -161,6 +161,16 @@ Manual release check:
 - Bottom bar should show `np: <title> – <MM:SS>` format (e.g. `np: Rick and Morty – S09E02 – 2:34`).
 - Info page Progress line should update live from IPC during playback (not just cached Jellyfin data), auto-updates without cursor movement.
 - Open info page for playing item, press q/backspace → returns to browser. Open info → play → backspace from Now Playing → returns to info page.
+
+### Docs and screenshots (this release cycle)
+
+- Reorganized `docs/` into release-based structure: `docs/release-0.0.34/` and `docs/future-release/`.
+- Updated README screenshots: selected best 10 from 31 harness captures per `docs/release-0.0.34/screenshot-analysis.md`.
+- New README screenshots: now-playing, playback-control, jump-to-time, replace-prompt.
+- Removed from README: mpv-log, refreshing (ranked lowest).
+- Full theme gallery regenerated: all 23 themes render cleanly in `docs/themes/`.
+- Updated help text with missing keys: `w`, `j`, `?`.
+- Version bumped to 0.0.34.
 
 ## 0.0.33 - 2026-06-20
 

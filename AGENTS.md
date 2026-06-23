@@ -96,6 +96,38 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for the full development and release checkl
 
 Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playback reporting into one large change.
 
+## Docs Structure (IMPORTANT for merges)
+
+The `docs/` directory was reorganized into release-based subdirectories:
+
+```
+docs/
+  release-0.0.34/       ← Everything for the 0.0.34 IPC Features release
+    release-plan.md
+    implementation-plan.md
+    implementation-report.md
+    manual-testing-results.md
+    retest-checklist.md
+    claude-didn't-listen.md
+    screenshot-analysis.md
+  future-release/       ← Planning docs for next release (subject to change)
+    release-plan.md
+    code-split-analysis.md
+    test-harness-analysis.md
+  screenshots/          ← 10 SVG screenshots referenced by README
+  themes/               ← 23 SVG theme gallery images
+```
+
+**OLD directories are GONE:** `docs/planning/`, `docs/plans/`, `docs/reports/`, `docs/manual-testing-results/` — deleted.
+
+**MERGE WARNING:** If another agent still has the old `docs/planning/`, `docs/plans/`, `docs/reports/`, or `docs/manual-testing-results/` directories in their branch, merging will conflict. Before merging:
+1. The other agent must rebase on top of the current `ipc-features` HEAD.
+2. OR: manually move their files to the correct `docs/release-0.0.34/` or `docs/future-release/` location and delete the old directories.
+
+**Do NOT re-create the old directory structure.** All new release docs go into `docs/release-X.Y.Z/` (or `docs/future-release/` for speculative planning).
+
+---
+
 ## Current Playback / IPC Status
 
 - mpv IPC is active: `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.

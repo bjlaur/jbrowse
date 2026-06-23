@@ -69,7 +69,13 @@ Not implemented yet:
 
 These screenshots use the committed fictional fixture library, not a real Jellyfin server or media collection.
 
-See [THEMES.md](THEMES.md) for the complete named-theme gallery.
+See [THEMES.md](THEMES.md) for the complete 23-theme gallery.
+
+### Now Playing
+
+The Now Playing page (Ctrl+N) with live progress bar, track info, pause state, and quality display. The flagship IPC feature.
+
+![Now Playing screenshot](docs/screenshots/now-playing.svg)
 
 ### Browser
 
@@ -77,23 +83,29 @@ The main library view with the selected item highlighted.
 
 ![Browser screenshot](docs/screenshots/browser.svg)
 
-### Theme Cycle
-
-The browser after a `Ctrl+X` theme cycle.
-
-![Theme cycle screenshot](docs/screenshots/after-ctrl-x.svg)
-
-### Search
-
-Typing `otter` filters the fixture library and shows the current match count.
-
-![Search screenshot](docs/screenshots/search.svg)
-
 ### Item Information
 
 Episode details, stream metadata, and the current subtitle choice.
 
 ![Item information screenshot](docs/screenshots/info.svg)
+
+### Playback Control Menu
+
+The global playback overlay (Ctrl+P) for pause, seek, quality, stop, and Now Playing access.
+
+![Playback control screenshot](docs/screenshots/playback-control.svg)
+
+### Jump to Time
+
+The jump-to-time overlay on the Now Playing page. Type MM:SS or HH:MM:SS to seek via IPC.
+
+![Jump to time screenshot](docs/screenshots/jump-to-time.svg)
+
+### Replace Playback Prompt
+
+The confirmation overlay shown when launching playback while something is already playing.
+
+![Replace prompt screenshot](docs/screenshots/replace-prompt.svg)
 
 ### Subtitle Picker
 
@@ -101,23 +113,23 @@ The per-item subtitle selector opened from the information panel.
 
 ![Subtitle picker screenshot](docs/screenshots/subtitles.svg)
 
+### Search
+
+Typing `otter` filters the fixture library and shows the current match count.
+
+![Search screenshot](docs/screenshots/search.svg)
+
 ### Help
 
 The in-app keyboard reference.
 
 ![Help screenshot](docs/screenshots/help.svg)
 
-### mpv Log
+### Theme Cycle
 
-The captured mpv command and output view.
+The browser after a `Ctrl+X` theme cycle.
 
-![mpv log screenshot](docs/screenshots/mpv-log.svg)
-
-### Refresh State
-
-The browser while a background refresh is in progress.
-
-![Refresh state screenshot](docs/screenshots/refreshing.svg)
+![Theme cycle screenshot](docs/screenshots/after-ctrl-x.svg)
 
 ## Requirements
 
