@@ -1,6 +1,38 @@
 # CHANGELOG.md
 
-## 0.0.34 - 2026-06-22 — IPC feature branch (in progress)
+## 0.0.34 - 2026-06-23 — IPC feature branch (in progress)
+
+### Agent 1 — Manual testing fixes round 2
+
+Code changes (jbrowse.py):
+- Removed F1 help key (Textual intercepts it). Use `Ctrl+L` or `?` instead. Added no-F-keys policy to AGENTS.md.
+- Ctrl+K from Now Playing: returns to `previous_page` (info) instead of hardcoded browser.
+- Same-item Enter: pressing Enter on the currently playing item opens Now Playing directly instead of showing replace prompt.
+- Replace prompt text: changed to `"Enter → replace"` / `"Backspace → cancel"` format. Panel title: "Replace Playback".
+- Ctrl+B quality change: seek-back delay increased from 0.5s to 1.0s for more reliable position preservation.
+- Info page Progress poll: added `self.refresh()` to force screen update without cursor movement.
+- Progress display: uses Jellyfin runtime (`item.runtime_ticks`) instead of mpv IPC duration for total time.
+
+Harness changes (tools/svg_screenshot_poc.py):
+- Added `--real-mpv-bitrate` flag and `run_real_mpv_bitrate_test()`: plays Euphoria 2160p file, cycles quality twice, verifies bitrate changes and position preserved via IPC.
+- Added `ctrl-b-bitrate` fake capture: cycles quality twice, verifies quality label updates.
+- Added `info-progress-auto-update` capture: verifies info page renders with IPC position after 1.5s wait.
+- Updated `replace-prompt` capture expected text to match new format.
+- Fixed `web-url` capture: removed `example.invalid` from expected text (works with both fake and real modes).
+- Added IPC connection wait in bitrate test.
+- Added stale IPC socket cleanup before bitrate test.
+
+Documentation:
+- Created `ipc-retest-checklist.md` with all test requests, harness/manual/dev/agent notes columns.
+- Added "Special Notes for Agents" section with gotchas (F1, Ctrl+H, web URL overlay guards, etc.).
+- Added usage instructions for agents and users.
+- Updated AGENTS.md with latest fixes and no-F-keys policy.
+- Created `claude-didn't-listen.md` report documenting missed harness tests.
+
+Known issues:
+- `--real` test suite has issues (other agent investigating).
+- Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
+- Ctrl+P may still show Textual command palette on some terminals (needs real-keyboard verification).
 
 ### Phase 1 — Low-level mpv IPC layer
 - `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
