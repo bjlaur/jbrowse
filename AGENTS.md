@@ -1,5 +1,9 @@
 # jbrowse Agent Notes
 
+> ⚠️ **IF YOURE NAUGHTY DADDY WILL MAKE YOU WRITE A REPORT** ⚠️
+> See [docs/misc/claude-didn't-listen.md](docs/misc/claude-didn't-listen.md) for past mistakes.
+> Read it. Learn from it. Don't repeat it.
+
 ## Project Shape
 
 - `jbrowse` is a single-file Python/Textual Jellyfin browser and `mpv` launcher.
@@ -80,6 +84,10 @@ input-ipc-server   # used by PlaybackManager for IPC
 - Each changelog entry should include a very small testing summary and note any important manual test gap.
 - When the user says to commit and/or push, treat that request as a Git-only operation. Do not make further file changes in that step. If a file change is still needed, stop and ask: "I just made my last changes before commit/push. Good to continue?"
 - **Every commit MUST update `AGENTS.md`, `TODO.md`, and `CHANGELOG.md`** to reflect the current state. No code commit without corresponding docs updates.
+
+## Parallel Work
+
+When working alongside another agent, follow [parallel-work.md](parallel-work.md).
 
 ## Release Checklist
 
