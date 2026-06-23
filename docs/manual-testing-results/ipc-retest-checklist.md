@@ -126,4 +126,26 @@
 
 **Round 3 retest requests:** 48 (Enter same file → NP), 49 (Ctrl+K → info), 50 (replace prompt text), 51 (Ctrl+B bitrate cycles), 52 (Ctrl+B position preserved), 53 (bottom bar live update), 54 (jump-to-time overlay), 55 (--real-mpv-jump test)
 
+**Round 4 retest requests (Agent 1):** 56 (Ctrl+P playback control), 57 (Ctrl+K → info), 58 (Enter same file → NP), 59 (replace prompt text), 60 (Ctrl+B position preserved), 61 (info Progress auto-update), 62 (duplicate Progress line), 63 (web URL on info), 64 (web URL on Now Playing), 65 (bottom bar format), 66 (long filename truncation), 67 (F1 no palette), 68 (? help key)
+
 **Still needs work:** 25 (wording revision), 36 (harness bitrate test), 46 (scroll indicator redesign)
+
+---
+
+## Round 4 — Agent 1 Additional Fixes
+
+| # | Test | Harness | Manual | Why no harness? | Agent notes |
+|---|------|---------|--------|-----------------|-------------|
+| 56 | Press `Ctrl+P` → playback control menu (not Textual palette) | [x] | [ ] | — | **FIX APPLIED**: Changed `use_command_palette` to `ENABLE_COMMAND_PALETTE = False` (correct Textual API). `ctrl-p-from-browser` harness capture verifies. Needs real-keyboard test. |
+| 57 | Ctrl+K from Now Playing → returns to info page | [ ] | [ ] | Didn't add a harness capture for this specific flow | **FIX APPLIED**: Ctrl+K handler now checks `self.page == "now_playing"` and returns to `previous_page`. |
+| 58 | Enter on same file → opens Now Playing (no replace prompt) | [ ] | [ ] | Didn't add a harness capture for this | **FIX APPLIED**: `start_playback()` checks if item ID matches current and opens Now Playing directly. |
+| 59 | Replace prompt text shows "Enter → replace" / "Backspace → cancel" | [x] | [ ] | — | **FIX APPLIED**: Updated `_render_replace_prompt()` text and panel title to "Replace Playback". |
+| 60 | Ctrl+B quality change preserves playback position | [ ] | [ ] | Can't verify position preservation with fake IPC | **FIX APPLIED**: seek-back delay increased from 0.5s to 1.0s. Needs `--real --real-mpv-bitrate` to verify. |
+| 61 | Info page Progress auto-updates without cursor movement | [x] | [ ] | — | **FIX APPLIED**: Added `self.refresh()` in `_poll_info()`. `info-progress-auto-update` capture verifies. |
+| 62 | Only one Progress line visible (no duplicate) | [x] | [ ] | — | **FIX APPLIED**: Changed regex from `Progress\s*:` to `Progress\s` (add_kv format has no colon). |
+| 63 | Web URL overlay on info page stays visible (not overwritten by IPC refresh) | [x] | [ ] | — | **FIX APPLIED**: `render_info()` now guards on `_web_url_visible`. |
+| 64 | Web URL overlay on Now Playing page stays visible 3+ seconds | [x] | [ ] | — | **FIX APPLIED**: `_render_now_playing()` and `_poll_info()` skip when `_web_url_visible`. |
+| 65 | Bottom bar shows `np: <title> – <MM:SS>` format | [x] | [ ] | — | **FIX APPLIED**: Changed from "playing:"/"paused:" to "np:" prefix. |
+| 66 | Long filenames truncated to ~40 chars + SxxExx | [x] | [ ] | — | **FIX APPLIED**: Increased from 10 to 40 char limit. |
+| 67 | F1 key does NOT open Textual command palette | [ ] | [ ] | Can't test in harness (no real keyboard) | **FIX APPLIED**: Removed F1 from help key binding. Use `Ctrl+L` or `?` instead. |
+| 68 | `?` key opens help overlay | [x] | [ ] | — | **FIX APPLIED**: `?` character triggers help. `help` capture uses `?` key. |
