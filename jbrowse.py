@@ -1739,9 +1739,9 @@ class BrowseApp(App[object]):
         text.append(f"Play this instead?\n\n", style="bold")
         text.append(f"{new_title}\n\n")
 
-        text.append("y play  n cancel", style="dim")
+        text.append("Enter play  Backspace cancel", style="dim")
 
-        self.listbox.update(self.overlay_panel(text, "Already Playing"))
+        self.listbox.update(self.overlay_panel(text, "Replace Playback"))
 
     def _handle_replace_key(self, key: str) -> bool:
         """Handle key presses on the replace prompt. Returns True if handled."""
