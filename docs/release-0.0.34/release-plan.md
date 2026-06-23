@@ -117,6 +117,18 @@ Items to verify manually:
 
 ### 7. Ask User Before Committing/Pushing — ✅ (user handling push from terminal)
 
+### 8. Major Release Steps (0.0.34 is a major release)
+
+Per DEVELOPMENT.md — everything in "Release" above, plus:
+
+- [x] **Full theme gallery**: `python tools/svg_screenshot_poc.py --item otter --all-themes` — ✅ 23 themes rendered, all pass
+- [x] **Verify all themes render without errors in `docs/themes/`** — ✅ 23 SVG files present, no errors
+- [ ] **Spot-check 3–4 theme SVGs visually for correct colors** — ⏳ Pending user review
+- [x] **Copy updated screenshots from `tools/screenshot/` to `docs/screenshots/` for README use** — ✅ 10 screenshots selected and copied
+- [x] **Review and update `README.md` from scratch if needed** — ✅ Features list, controls, config, and screenshots all updated
+- [x] **Update `CHANGELOG.md` with full release notes and testing summary** — ✅ Every-few-commits and docs sections added
+- [ ] **Ask user before pushing to remote** — ⏳ Pending (user handling push from terminal)
+
 ---
 
 ## Known Issues (Accepted for 0.0.34)
