@@ -221,7 +221,7 @@ async def export_view(
             await pilot.press("s")
             await settle(app, pilot)
         elif view == "help":
-            await pilot.press("?")
+            await pilot.press("ctrl+h")
             await settle(app, pilot)
         elif view == "mpv-log":
             app.open_mpv_log()
@@ -945,7 +945,7 @@ async def main_async(args: argparse.Namespace) -> int:
             "search": ("search.svg", "search", ["otter", "matched", "showing"]),
             "info": ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
             "subtitles": ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
-            "help": ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B"]),
+            "help": ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B", "Ctrl+H/L"]),
             "mpv-log": ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
             "refreshing": ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
             "now-playing": ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
@@ -1027,9 +1027,7 @@ async def main_async(args: argparse.Namespace) -> int:
         ("search.svg", "search", ["otter", "matched", "showing"]),
         ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
-        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B"]),
-        ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one", "1", "2", "3"]),
-        ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
+        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B", "Ctrl+H/L"]),
         ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
         ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
         ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
