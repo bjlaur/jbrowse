@@ -2167,7 +2167,7 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
-        if event.key in {"ctrl+l"} or getattr(event, "character", None) == "?":
+        if event.key == "ctrl+l" or getattr(event, "character", None) == "?":
             self.previous_page = self.page if self.page in {"browser", "info"} else "browser"
             self.page = "help"
             self.render_help()
@@ -3096,7 +3096,6 @@ class BrowseApp(App[object]):
         help_text.append("Ctrl+P       playback control menu\n")
         help_text.append("Ctrl+X       next theme and save it to jbrowse.conf\n")
         help_text.append("Ctrl+L       show this help\n")
-        help_text.append("?            show this help\n")
         help_text.append("Ctrl+C       quit (stops mpv first)\n")
         help_text.append("\n")
         help_text.append("Press any key to close this help.", style="dim")
@@ -3170,7 +3169,7 @@ class BrowseApp(App[object]):
             parts.append(f"regex error: {self.regex_error}")
 
         parts.append(f"display: {self.display_mode}")
-        parts.append("F1 help")
+        parts.append("? help")
 
         self.status.update(" | ".join(parts))
         self.update_bottom_status()

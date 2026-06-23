@@ -214,7 +214,7 @@ Ctrl+B       cycle quality / bitrate
 Ctrl+N       now playing page
 Ctrl+X       cycle theme and save it to jbrowse.conf
 Ctrl+L       show help
-?            show help
+Ctrl+L       show help
 Ctrl+C       quit (stops active mpv first)
 ```
 
