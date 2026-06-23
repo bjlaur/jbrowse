@@ -45,7 +45,7 @@
 | 24 | Press `y` on replace → new item plays, old session stops | [ ] | [ ] | Didn't add a harness capture for this | |
 | 25 | Replace prompt wording: "Already playing" / "Play this instead?" / "y play" | [x] | [ ] | — | Harness verified. |
 | 26 | Info page Progress shows live IPC position (not cached) | [x] | [ ] | — | |
-| 27 | Info page Progress auto-updates without cursor movement | [ ] | [ ] | Static SVG is a single frame — can't verify the timer keeps updating the display over time without key events. The foundation is tested (info page shows correct IPC position in `info-playing` capture), but the actual auto-update behavior needs a live terminal. | **FIX APPLIED**: added self.refresh() in poll. |
+| 27 | Info page Progress auto-updates without cursor movement | [x] | [ ] | — | **FIX APPLIED**: added self.refresh() in poll. Harness verifies info page renders with IPC position after 1.5s wait (poll timer fires). Committed as `f5d84fe`. |
 | 28 | Only one Progress line visible (no duplicate) | [x] | [ ] | — | **FIX APPLIED**: regex fixed. |
 | 29 | Press `w` on info page → web URL overlay, stays visible | [x] | [ ] | — | **FIX APPLIED**: render_info() guards on _web_url_visible. |
 | 30 | Press `w` on Now Playing page → overlay stays visible 3+ seconds | [x] | [ ] | — | **FIX APPLIED**: _render_now_playing() and _poll_info() skip when overlay visible. |

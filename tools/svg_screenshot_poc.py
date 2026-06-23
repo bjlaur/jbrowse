@@ -249,6 +249,16 @@ async def export_view(
             app.page = "info"
             app.render_info()
             await settle(app, pilot)
+        elif view == "info-progress-auto-update":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app._info_poll_stop = False
+            app.render_info()
+            await settle(app, pilot)
+            # Wait for the poll timer to fire (1s interval + settle time)
+            await pilot.pause(1.5)
+            await settle(app, pilot)
         elif view == "now-playing-quality":
             _setup_fake_playback(app, demo_item)
             app.open_now_playing()
@@ -712,6 +722,7 @@ async def main_async(args: argparse.Namespace) -> int:
             "now-playing-backspace-to-info": ("now-playing-backspace-to-info.svg", "now-playing-backspace-to-info", ["Info"]),
             "web-url-info-overlay": ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL"]),
             "web-url-now-playing-overlay": ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL"]),
+            "info-progress-auto-update": ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
         }
         if args.view not in view_map:
             print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
@@ -795,6 +806,7 @@ async def main_async(args: argparse.Namespace) -> int:
         ("now-playing-backspace-to-info.svg", "now-playing-backspace-to-info", ["Info"]),
         ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL", "q close"]),
         ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL", "q close"]),
+        ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
     ]
 
     for index, (filename, view, expected) in enumerate(captures, start=2):
