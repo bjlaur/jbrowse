@@ -1,5 +1,30 @@
 # IPC Re-test Checklist — 0.0.34
 
+## How to Use This Document
+
+### For Agents (AI):
+- **Harness**: Check `[x]` if a harness capture exists and passes. Check `[ ]` if no harness test exists.
+- **Manual**: Leave `[ ]` for the user to test. Do NOT check manual tests yourself.
+- **Why no harness?**: Explain why the harness can't test this (be honest — "didn't add a capture" is a valid reason).
+- **Agent notes**: Write what you did — fixes applied, harness captures added, things to investigate. Use `**FIX APPLIED**` prefix for code changes.
+- **Do NOT write in Dev notes** — that's for the user.
+
+### For Users (Human):
+- **Manual**: Check `[x]` when you've verified it works. Check `[ ]` if not tested. Write **FAIL** if broken.
+- **Dev notes**: Write your observations, concerns, and test results here.
+- Add new test requests at the bottom of the latest round.
+
+### Column Order:
+`# | Test | Harness | Manual | Why no harness? | Dev notes | Agent notes`
+
+### Adding New Rounds:
+1. Create a new `## Round N — <Title>` section
+2. Continue numbering from the last round
+3. Use the same 7-column table format
+4. Add a summary at the bottom
+
+---
+
 ## Legend
 
 - [x] = passed
