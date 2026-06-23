@@ -77,13 +77,13 @@
 
 ## Round 3 — New Retest Requests
 
-| # | Test | Harness | Manual | Why no harness? | Notes |
-|---|------|---------|--------|-----------------|-------|
-| 48 | Press Enter on same file → opens Now Playing (no replace prompt) | [ ] | [ ] | Didn't add a harness capture for this | **FIX APPLIED**: same-item check in `start_playback()`. Needs re-test. |
-| 49 | Ctrl+K from Now Playing → returns to info page | [ ] | [ ] | Didn't add a harness capture for this | **FIX APPLIED**: Ctrl+K handler now checks `self.page == "now_playing"` and returns to `previous_page`. Needs re-test. |
-| 50 | Replace prompt text shows "Enter → replace" / "Backspace → cancel" | [x] | [ ] | — | **FIX APPLIED**: updated text format. Harness capture `replace-prompt` still checks old text — needs update. |
-| 51 | Ctrl+B bitrate cycles through presets (direct→40mbps→20mbps...) | [x] | [ ] | — | **FIX APPLIED**: `--real-mpv-bitrate` test added. Also `ctrl-b-bitrate` fake capture cycles twice and verifies quality label. Needs `--real --real-mpv-bitrate` for full test. |
-| 52 | Ctrl+B quality change preserves playback position | [ ] | [ ] | Can't verify position preservation with fake IPC (no real mpv). `--real-mpv-bitrate` test checks this. | **FIX APPLIED**: seek back after loadfile_replace. Run `--real --real-mpv-bitrate` to verify. |
+| # | Test | Harness | Manual | Why no harness? | Dev notes | Agent notes |
+|---|------|---------|--------|-----------------|-----------|-------------|
+| 48 | Press Enter on same file → opens Now Playing (no replace prompt) | [ ] | [ ] | Didn't add a harness capture | **FIX APPLIED**: same-item check in `start_playback()`. | Needs re-test. |
+| 49 | Ctrl+K from Now Playing → returns to info page | [ ] | [ ] | Didn't add a harness capture | **FIX APPLIED**: Ctrl+K handler now checks `self.page == "now_playing"` and returns to `previous_page`. | Needs re-test. |
+| 50 | Replace prompt text shows "Enter → replace" / "Backspace → cancel" | [x] | [ ] | — | **FIX APPLIED**: updated text format. Harness capture updated to match. | Needs re-test. |
+| 51 | Ctrl+B bitrate cycles through presets | [x] | [ ] | — | **FIX APPLIED**: `--real-mpv-bitrate` test + `ctrl-b-bitrate` fake capture. | Needs `--real --real-mpv-bitrate` for full test. |
+| 52 | Ctrl+B quality change preserves playback position | [ ] | [ ] | Can't verify with fake IPC | **FIX APPLIED**: seek back after loadfile_replace. Run `--real --real-mpv-bitrate` to verify. | Needs re-test. |
 
 ---
 
