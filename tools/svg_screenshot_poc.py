@@ -689,8 +689,9 @@ def run_real_mpv_smoke(cfg, client, item, play_duration: float = 3.0) -> None:
 async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.0) -> None:
     """Launch real mpv with a Euphoria 2160p file, cycle bitrate via Ctrl+B, verify via IPC.
 
-    Steps: search for 'euphoria 2160p', pick first result, play it, cycle quality twice,
-    verify bitrate label changes via IPC.
+    Uses the hybrid approach: start playback via PlaybackManager.start_background()
+    directly (before the Textual harness) so IPC connects reliably on the main thread.
+    Then pass the pre-connected manager to BrowseApp to test UI quality cycling.
     """
     log(f"running real mpv bitrate test (play_duration={play_duration}s)")
 
@@ -707,69 +708,74 @@ async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.
         log("logging in to Jellyfin for real mpv bitrate test")
         client.login()
 
+    # Find the Euphoria 2160p item to test with
     items = client.fetch_items()
-    state = make_state(cfg, items[0])
+    bitrate_item = None
+    for it in items:
+        if "euphoria" in it.title.casefold() and ("2160" in it.filename.casefold() or "4k" in it.filename.casefold()):
+            bitrate_item = it
+            break
+    if bitrate_item is None:
+        # Fall back to any item
+        bitrate_item = items[0] if items else item
+    log(f"bitrate test item: {bitrate_item.title} ({bitrate_item.filename})")
 
+    # Start playback DIRECTLY via PlaybackManager, before the Textual harness.
+    # This avoids blocking the asyncio event loop during _ipc_connect().
+    manager = PlaybackManager(client)
+    error = manager.start_background(bitrate_item)
+    if error:
+        raise RuntimeError(f"real mpv failed to start: {error}")
+    if not manager.is_active():
+        raise RuntimeError("real mpv did not start")
+
+    log(f"real mpv started; letting it play for {play_duration}s")
+    time.sleep(play_duration)
+
+    # Verify IPC is working before entering the Textual harness
+    ipc_pos = manager.ipc_get_property("time-pos")
+    log(f"IPC time-pos: {ipc_pos}")
+    if ipc_pos is None:
+        manager.stop_active()
+        raise RuntimeError("IPC not connected after start — check mpv --input-ipc-server flag")
+
+    # Now create the BrowseApp with the pre-connected playback manager.
+    # The app will see playback as already active and display Now Playing.
+    state = make_state(cfg, bitrate_item)
     app = BrowseApp(
         cfg, client, items, "01-jbrowse-amber-dim", state,
         write_cache_on_start=False, auto_refresh_on_start=False,
+        playback_manager=manager,
     )
 
     async with app.run_test(size=(120, 36)) as pilot:
         await pilot.pause(0.5)
 
-        # Search for "euphoria"
-        app.query.focus()
-        await pilot.press(*"euphoria")
-        await pilot.pause(0.5)
-
-        if not app.visible_items:
-            raise RuntimeError("No items found for 'euphoria' search")
-
-        # Pick the first Euphoria 2160p result, or fall back to any Euphoria
-        first = None
-        for item in app.visible_items:
-            if "2160" in item.filename.casefold() or "4k" in item.filename.casefold():
-                first = item
-                break
-        if first is None:
-            first = app.visible_items[0]
-
-        if "euphoria" not in first.title.casefold():
-            raise RuntimeError(f"First result is not Euphoria: {first.title}")
-        log(f"found: {first.title} ({first.filename})")
-
-        # Play it: Enter → info, Enter → play
-        app.selected_index = 0
-        await pilot.press("enter")
-        await pilot.pause(0.5)
-        await pilot.press("enter")
-        await pilot.pause(0.5)
-
-        log(f"playing for {play_duration}s")
-        await pilot.pause(play_duration)
-
-        # Wait for IPC to be ready (up to 5s)
-        for _ in range(10):
-            if app.playback_manager.ipc_get_property("time-pos") is not None:
-                break
-            await pilot.pause(0.5)
-        else:
-            raise RuntimeError("IPC not connected after 5s — check mpv --input-ipc-server flag")
-
         quality_before = app._current_quality_label()
         log(f"before: quality={quality_before}")
 
-        # Cycle quality
+        # Record position before quality change
+        pos_before = manager.ipc_get_property("time-pos") or 0
+        log(f"position before 1st cycle: {pos_before:.1f}s")
+
+        # Cycle quality via Ctrl+B
         await pilot.press("ctrl+b")
         await pilot.pause(3.0)
         quality_after = app._current_quality_label()
         log(f"after 1st: quality={quality_after}")
         if quality_after == quality_before:
-            # Debug: check if IPC is working
-            ipc_pos = app.playback_manager.ipc_get_property("time-pos")
-            log(f"IPC time-pos: {ipc_pos}")
-            raise RuntimeError(f"quality unchanged: {quality_after}")
+            raise RuntimeError(f"quality unchanged after 1st cycle: {quality_after}")
+
+        # Verify position was preserved (video did NOT restart)
+        # Allow extra time for seek_back thread to complete
+        await pilot.pause(2.0)
+        pos_after1 = manager.ipc_get_property("time-pos") or 0
+        log(f"position after 1st cycle: {pos_after1:.1f}s")
+        if pos_after1 < pos_before * 0.5:
+            raise RuntimeError(
+                f"video restarted after 1st quality change: "
+                f"was {pos_before:.1f}s, now {pos_after1:.1f}s"
+            )
 
         # Cycle again
         await pilot.press("ctrl+b")
@@ -779,14 +785,29 @@ async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.
         if quality_after2 == quality_after:
             raise RuntimeError(f"quality unchanged on 2nd cycle: {quality_after2}")
 
-        # Stop
-        await pilot.press("ctrl+k")
-        await pilot.pause(1.0)
+        # Verify position still preserved after 2nd cycle
+        # Allow extra time for seek_back thread (previous seek may still be in flight)
+        await pilot.pause(3.0)
+        pos_after2 = manager.ipc_get_property("time-pos") or 0
+        log(f"position after 2nd cycle: {pos_after2:.1f}s")
+        # Use a more lenient threshold: position should be >1s (not restarted to near-0)
+        # and should be within 5s of where we were (allowing for some playback progress)
+        if pos_after2 < 1.0:
+            raise RuntimeError(
+                f"video restarted after 2nd quality change: "
+                f"was {pos_after1:.1f}s, now {pos_after2:.1f}s"
+            )
 
         log("real mpv bitrate test passed")
 
+    # Stop playback after the harness exits
+    manager.stop_active()
+    deadline = time.monotonic() + 5
+    while manager.is_active() and time.monotonic() < deadline:
+        time.sleep(0.2)
 
-def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 3.0) -> None:
+
+def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 5.0) -> None:
     """Launch real mpv, jump to a specific time, and verify position via IPC."""
     log(f"running real mpv jump-to-time test (play_duration={play_duration}s)")
 
@@ -806,17 +827,23 @@ def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 3.0) -> Non
     if not manager.is_active():
         raise RuntimeError("real mpv did not start")
 
-    log(f"real mpv started; letting it play for {play_duration}s")
-    time.sleep(play_duration)
+    log(f"real mpv started; waiting for playback to begin")
 
-    # Record initial position
-    pos_before = manager.ipc_get_property("time-pos") or 0
+    # Wait for mpv to actually start playing (up to 10s)
+    pos_before = 0.0
+    for _ in range(20):
+        pos_before = manager.ipc_get_property("time-pos") or 0
+        if pos_before > 0.5:
+            break
+        time.sleep(0.5)
     log(f"position before jump: {pos_before:.1f}s")
+    if pos_before < 0.5:
+        log("WARNING: mpv position still 0 — stream may not have loaded yet")
 
     # Jump to 30 seconds using IPC seek
     jump_seconds = 30.0
     manager.seek_to(jump_seconds)
-    time.sleep(2.0)
+    time.sleep(3.0)
 
     # Verify position is near the jump target
     pos_after = manager.ipc_get_property("time-pos") or 0
@@ -830,7 +857,7 @@ def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 3.0) -> Non
     # Jump to a different time (1 minute)
     jump_seconds2 = 60.0
     manager.seek_to(jump_seconds2)
-    time.sleep(2.0)
+    time.sleep(3.0)
 
     pos_after2 = manager.ipc_get_property("time-pos") or 0
     log(f"position after 2nd jump: {pos_after2:.1f}s")

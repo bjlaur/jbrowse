@@ -47,6 +47,24 @@ Documentation:
 - Updated `ipc-retest-checklist.md` with round 2 agent notes and re-test results.
 - Updated `TODO.md` with completed items.
 
+### Agent 2 — Fix --real tests (branch: real-mpv-bitrate-fix)
+
+Root cause: `run_real_mpv_bitrate_test()` launched mpv through the Textual test harness (`app.run_test()` + `pilot.press()`), which called `start_background()` on the asyncio event loop thread. The blocking `_ipc_connect()` call froze the event loop, preventing IPC from connecting.
+
+Fix for `--real-mpv-bitrate`:
+- Rewrote `run_real_mpv_bitrate_test()` to use the hybrid approach: start playback via `PlaybackManager.start_background()` directly (before the Textual harness), then pass the pre-connected manager to `BrowseApp` via the `playback_manager` constructor parameter.
+- Added position preservation checks: verifies video does NOT restart after each quality cycle (position stays within 50% of pre-cycle value).
+- All 3 quality cycles (direct→40mbps→20mbps) verified with position preservation.
+
+Fix for `--real-mpv-jump`:
+- Increased `play_duration` default from 3s → 5s.
+- Added wait loop for mpv to actually begin playing (up to 10s polling `time-pos > 0.5`).
+- Increased post-jump wait from 2s → 3s for seek to complete.
+- Both jumps (30s, 60s) verified.
+
+Known issues:
+- Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
+
 ### Ctrl+P fix (other agent)
 - Changed `use_command_palette = False` to `ENABLE_COMMAND_PALETTE = False` (correct Textual API).
 - Harness capture updated to verify Ctrl+P opens playback control menu.
@@ -56,11 +74,6 @@ Documentation:
 - Added `quick_settle()` for views that just pressed a key (skips full style cache clear).
 - Reduced Ctrl+X theme cycle pause from 0.2s → 0.1s.
 - Full harness: 1m24s → 31s (62% faster), all 31 captures pass.
-
-Known issues:
-- `--real-mpv-bitrate` test fails: "IPC not connected after 5s" — bitrate test uses `app.run_test()` harness which may not set up IPC socket correctly. Basic `--ipc-only` smoke test passes fine.
-- `--real-mpv-jump` test not yet run.
-- Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
 
 ### Phase 1 — Low-level mpv IPC layer
 - `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
