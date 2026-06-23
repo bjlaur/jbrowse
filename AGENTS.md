@@ -120,8 +120,11 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - Web URL overlay: render_info() and _render_now_playing() guard on _web_url_visible.
 - Info page Progress: regex fixed (Progress\s instead of Progress\s*:); _web_url_visible guard added; 1s auto-update poll with self.refresh().
 - Progress display: uses Jellyfin runtime (`item.runtime_ticks`) for total time instead of mpv IPC duration (which can differ during transcoding).
-- Help key: F1 removed (Textual intercepts it). Use Ctrl+L or ? (? may not work in all terminals).
+- Help key: F1 removed (Textual intercepts it). Use Ctrl+H (was Ctrl+L/?).
 - No F keys policy: F1–F12 all intercepted by Textual, don't use them.
 - Harness: 31 captures including all fixed items. `--real-mpv-bitrate` and `--real-mpv-jump` tests pass.
 - Completed: All IPC feature phases (1–6) + playback control menu + all manual testing re-test fixes + jump-to-time + real IPC test fixes.
+- Bottom bar poll: calls `update_bottom_status()` (page-aware) instead of `bottom_status_text()` directly.
+- Now Playing playback-end: returns to `previous_page` (info) instead of hardcoded browser.
+- Scroll indicator: text-based `[####----] 42%` (renders in SVG export, unlike `█░` block chars).
 - Next: Server-side safety guard, audio picker, help text cleanup, replace prompt wording revision.

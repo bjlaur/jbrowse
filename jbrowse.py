@@ -2203,7 +2203,7 @@ class BrowseApp(App[object]):
             event.stop()
             return
 
-        if event.key == "ctrl+l" or getattr(event, "character", None) == "?":
+        if event.key in {"ctrl+l", "ctrl+h"}:
             self.previous_page = self.page if self.page in {"browser", "info"} else "browser"
             self.page = "help"
             self.render_help()
@@ -2389,9 +2389,14 @@ class BrowseApp(App[object]):
         if self.page == "now_playing":
             if not playback_active:
                 self._now_playing_poll_stop = True
-                self.page = "browser"
-                self.render_items()
-                self.query.focus()
+                return_page = self.previous_page if self.previous_page in {"browser", "info"} else "browser"
+                self.page = return_page
+                if return_page == "browser":
+                    self.render_items()
+                    self.query.focus()
+                elif return_page == "info":
+                    self.render_info()
+                    self.query.focus()
             else:
                 self._render_now_playing()
         elif self.page == "mpv_log":
@@ -2935,7 +2940,7 @@ class BrowseApp(App[object]):
             return
         if self._bottom_bar_poll_stop:
             return
-        self.bottom_status.update(self.bottom_status_text())
+        self.update_bottom_status()
         self.set_timer(1.0, self._poll_bottom_bar)
 
     def _render_now_playing(self) -> None:
@@ -2973,10 +2978,10 @@ class BrowseApp(App[object]):
         if ipc_dur > 0:
             filled = int(bar_width * ipc_pos / ipc_dur)
             filled = max(0, min(filled, bar_width))
-            bar = "█" * filled + "░" * (bar_width - filled)
+            bar = "#" * filled + "-" * (bar_width - filled)
             pos_str = format_seconds(ipc_pos)
             dur_str = format_seconds(ipc_dur)
-            text.append(f"\n{bar}  {pos_str} / {dur_str}\n")
+            text.append(f"\n[{bar}]  {pos_str} / {dur_str}\n")
         else:
             text.append(f"\n{format_seconds(ipc_pos)}\n")
 
@@ -3174,13 +3179,13 @@ class BrowseApp(App[object]):
         text.append("q/backspace close | ↑/↓ scroll | PageUp/PageDown | Home/End", style="dim")
         text.append("\n")
 
-        # Scroll position indicator
+        # Scroll position indicator (text-based, renders in SVG export)
         if max_scroll > 0:
+            pct = int((self.mpv_log_scroll + height) / len(lines) * 100)
             bar_width = 20
             pos = int(self.mpv_log_scroll / max_scroll * (bar_width - 1)) if max_scroll > 0 else 0
-            scroll_bar = "█" * (pos + 1) + "░" * (bar_width - pos - 1)
-            pct = int((self.mpv_log_scroll + height) / len(lines) * 100)
-            text.append(f"  {scroll_bar}  {pct}%\n", style="dim")
+            scroll_bar = "#" * (pos + 1) + "-" * (bar_width - pos - 1)
+            text.append(f"  [{scroll_bar}] {pct:3d}%\n", style="dim")
         text.append("\n")
 
         total_lines = len(lines)
@@ -3252,8 +3257,7 @@ class BrowseApp(App[object]):
         help_text.append("Ctrl+N       now playing page\n")
         help_text.append("Ctrl+P       playback control menu\n")
         help_text.append("Ctrl+X       next theme and save it to jbrowse.conf\n")
-        help_text.append("Ctrl+L       show this help\n")
-        help_text.append("?            show this help\n")
+        help_text.append("Ctrl+H       show this help\n")
         help_text.append("Ctrl+C       quit (stops mpv first)\n")
         help_text.append("\n")
         help_text.append("Press any key to close this help.", style="dim")
@@ -3327,7 +3331,7 @@ class BrowseApp(App[object]):
             parts.append(f"regex error: {self.regex_error}")
 
         parts.append(f"display: {self.display_mode}")
-        parts.append("? help")
+        parts.append("Ctrl+H help")
 
         self.status.update(" | ".join(parts))
         self.update_bottom_status()
