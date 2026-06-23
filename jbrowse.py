@@ -2130,6 +2130,11 @@ class BrowseApp(App[object]):
                 event.stop()
                 return
 
+            if typed == "n" or event.key == "n":
+                self.open_now_playing()
+                event.stop()
+                return
+
             if typed == "s" or event.key == "s":
                 self.open_subtitle_picker()
                 event.stop()
@@ -2153,6 +2158,10 @@ class BrowseApp(App[object]):
             if event.key in {"up", "down", "pageup", "pagedown", "home", "end"}:
                 self.scroll_info(event.key)
                 event.stop()
+                return
+
+            # Let global handlers (Ctrl+N, Ctrl+B, Ctrl+P, etc.) pass through
+            if event.key in {"ctrl+n", "ctrl+b", "ctrl+p", "ctrl+k", "ctrl+g"}:
                 return
 
             event.stop()
@@ -2775,7 +2784,7 @@ class BrowseApp(App[object]):
 
         shown = lines[self.info_scroll : self.info_scroll + height]
 
-        info_text.append("q/backspace close | Enter play | s subtitles | w web | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
+        info_text.append("q/backspace close | Enter play | s subtitles | w web | n now playing | ←/→ episode | [/] season | ↑/↓ scroll", style="dim")
         info_text.append("\n\n")
 
         for line_number, line in enumerate(shown):
@@ -3076,7 +3085,7 @@ class BrowseApp(App[object]):
         help_text.append("/pattern     regex search\n")
         help_text.append("Ctrl+T       toggle title/filename display and search\n")
         help_text.append("Ctrl+O       toggle ascending/descending sort\n")
-        help_text.append("Info: q/backspace close, Enter play, s subtitles, w web, ←/→ episode, [/] season\n")
+        help_text.append("Info: q/backspace close, Enter play, s subtitles, w web, n now playing, ←/→ episode, [/] season\n")
         help_text.append("Ctrl+R       refresh Jellyfin list\n")
         help_text.append("Ctrl+G       show mpv output\n")
         help_text.append("Ctrl+K       stop active mpv playback\n")

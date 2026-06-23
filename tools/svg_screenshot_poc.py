@@ -219,6 +219,12 @@ async def export_view(
             _setup_fake_playback(app, demo_item)
             app.open_now_playing()
             await settle(app, pilot)
+        elif view == "ctrl-n-now-playing":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+            # Press Ctrl+N to open Now Playing page
+            await pilot.press("ctrl+n")
+            await settle(app, pilot)
         elif view == "playback-control":
             _setup_fake_playback(app, demo_item)
             app._open_playback_control()
@@ -723,6 +729,7 @@ async def main_async(args: argparse.Namespace) -> int:
             "web-url-info-overlay": ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL"]),
             "web-url-now-playing-overlay": ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL"]),
             "info-progress-auto-update": ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
+            "ctrl-n-now-playing": ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
         }
         if args.view not in view_map:
             print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
@@ -788,6 +795,7 @@ async def main_async(args: argparse.Namespace) -> int:
         ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one", "1", "2", "3"]),
         ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
         ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
+        ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
         ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
         ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "y play", "n cancel"]),
         ("web-url.svg", "web-url", ["Jellyfin Web URL", "example.invalid", "details?id=", "q close"]),
