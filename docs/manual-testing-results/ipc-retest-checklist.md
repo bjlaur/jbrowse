@@ -27,9 +27,17 @@
 
 ## Legend
 
-- [x] = passed
-- [ ] = not tested yet
-- **FAIL** = broken, needs fix
+### Checkboxes
+- `[x]` — tested and passed
+- `[ ]` — not tested yet
+- `[FAIL]` — tested and broken. **Always put the reason in the notes column.** Explain what went wrong and what needs to change.
+- `[SKIP]` — intentionally not testing. **Always put the reason in the notes column.** (e.g., "already tested in round 1", "requires hardware not available", "blocked by other issue").
+
+### Rules
+- Every row MUST have a checkbox. No row should be left blank.
+- If you change a checkbox, add a note explaining why.
+- When adding new tests, append to the latest round. Don't insert into old rounds.
+- Keep the summary section at the bottom up to date.
 
 ---
 
