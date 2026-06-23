@@ -47,10 +47,20 @@ Documentation:
 - Updated `ipc-retest-checklist.md` with round 2 agent notes and re-test results.
 - Updated `TODO.md` with completed items.
 
+### Ctrl+P fix (other agent)
+- Changed `use_command_palette = False` to `ENABLE_COMMAND_PALETTE = False` (correct Textual API).
+- Harness capture updated to verify Ctrl+P opens playback control menu.
+
+### Harness optimization (other agent)
+- Reduced `settle()` pause from 1.0s → 0.3s.
+- Added `quick_settle()` for views that just pressed a key (skips full style cache clear).
+- Reduced Ctrl+X theme cycle pause from 0.2s → 0.1s.
+- Full harness: 1m24s → 31s (62% faster), all 31 captures pass.
+
 Known issues:
-- `--real` test suite may have issues on `ipc-features` branch (other agent's merge removed some features).
+- `--real-mpv-bitrate` test fails: "IPC not connected after 5s" — bitrate test uses `app.run_test()` harness which may not set up IPC socket correctly. Basic `--ipc-only` smoke test passes fine.
+- `--real-mpv-jump` test not yet run.
 - Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
-- Ctrl+P may still show Textual command palette on some terminals (needs real-keyboard verification).
 
 ### Phase 1 — Low-level mpv IPC layer
 - `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
