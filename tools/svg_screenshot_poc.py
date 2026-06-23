@@ -696,6 +696,8 @@ async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.
 
     # Clean up stale IPC sockets and mpv processes
     import glob
+    import os
+    import subprocess
     for sock in glob.glob("/tmp/jbrowse-mpv-*.sock"):
         os.unlink(sock)
     subprocess.run(["pkill", "-f", "mpv.*jbrowse"], capture_output=True)
