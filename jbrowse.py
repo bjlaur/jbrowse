@@ -3101,16 +3101,8 @@ class BrowseApp(App[object]):
             time_str = getattr(self, "_jump_to_time_input", "")
             seconds = self._parse_time_string(time_str)
             if seconds is not None:
-                item = self.playback_manager.item
-                if item is not None:
-                    # Use loadfile_replace to restart mpv at new position
-                    url = self.client.stream_url(item)
-                    # Add start position to URL
-                    if "?" in url:
-                        url += f"&StartTimeTicks={int(seconds * TICKS_PER_SECOND)}"
-                    else:
-                        url += f"?StartTimeTicks={int(seconds * TICKS_PER_SECOND)}"
-                    self.playback_manager.loadfile_replace(url)
+                # Use mpv IPC seek to jump to the specified time
+                self.playback_manager.seek_to(seconds)
             self._jump_to_time_visible = False
             self._render_now_playing()
             return True

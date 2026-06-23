@@ -811,14 +811,9 @@ def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 3.0) -> Non
     pos_before = manager.ipc_get_property("time-pos") or 0
     log(f"position before jump: {pos_before:.1f}s")
 
-    # Jump to 30 seconds using loadfile_replace with StartTimeTicks
+    # Jump to 30 seconds using IPC seek
     jump_seconds = 30.0
-    url = client.stream_url(item)
-    if "?" in url:
-        url += f"&StartTimeTicks={int(jump_seconds * 10_000_000)}"
-    else:
-        url += f"?StartTimeTicks={int(jump_seconds * 10_000_000)}"
-    manager.loadfile_replace(url)
+    manager.seek_to(jump_seconds)
     time.sleep(2.0)
 
     # Verify position is near the jump target
@@ -832,12 +827,7 @@ def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 3.0) -> Non
 
     # Jump to a different time (1 minute)
     jump_seconds2 = 60.0
-    url2 = client.stream_url(item)
-    if "?" in url2:
-        url2 += f"&StartTimeTicks={int(jump_seconds2 * 10_000_000)}"
-    else:
-        url2 += f"?StartTimeTicks={int(jump_seconds2 * 10_000_000)}"
-    manager.loadfile_replace(url2)
+    manager.seek_to(jump_seconds2)
     time.sleep(2.0)
 
     pos_after2 = manager.ipc_get_property("time-pos") or 0
