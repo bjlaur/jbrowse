@@ -1739,7 +1739,8 @@ class BrowseApp(App[object]):
         text.append(f"Play this instead?\n\n", style="bold")
         text.append(f"{new_title}\n\n")
 
-        text.append("Enter play  Backspace cancel", style="dim")
+        text.append("Enter  →  replace\n", style="dim")
+        text.append("Backspace  →  cancel", style="dim")
 
         self.listbox.update(self.overlay_panel(text, "Replace Playback"))
 
