@@ -1430,7 +1430,7 @@ class ItemPane(Static, can_focus=True):
 
 class BrowseApp(App[object]):
     CSS = ""
-    use_command_palette = False  # we use Ctrl+P for playback control
+    ENABLE_COMMAND_PALETTE = False  # we use Ctrl+P for playback control
 
     def __init__(
         self,

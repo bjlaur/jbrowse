@@ -304,7 +304,8 @@ async def export_view(
             await settle(app, pilot)
         elif view == "ctrl-p-from-browser":
             _setup_fake_playback(app, demo_item)
-            app._open_playback_control()
+            await settle(app, pilot)
+            await pilot.press("ctrl+p")
             await settle(app, pilot)
         elif view == "space-pause":
             _setup_fake_playback(app, demo_item)
