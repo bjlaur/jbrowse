@@ -7,7 +7,7 @@ It lets you log into Jellyfin, browse/search your media locally, open an info pa
 Current prototype version:
 
 ```text
-0.0.33
+0.0.34
 ```
 
 Current main script:
@@ -32,16 +32,21 @@ Current features:
 - Episode navigation from info page.
 - Subtitle picker from the info page.
 - Background `mpv` playback while `jbrowse` stays open.
-- Minimal Jellyfin playback reporting for recently played state.
+- **mpv IPC** for accurate playback control and position reporting.
+- **Accurate Jellyfin playback reporting** via IPC (start, periodic progress, stopped).
+- **Now Playing page** (Ctrl+N) with live progress bar, track info, pause state.
+- **Playback control menu** (Ctrl+P) — global overlay for pause, seek, quality, stop.
+- **Pause/seek controls** — Space toggles pause, `,`/`. seek ±10s.
+- **Replace playback prompt** — "Already playing" confirmation overlay when playing over active playback.
+- **Static bitrate selection** (Ctrl+B) — cycle quality presets via transcoding.
+- **Web URL hotkey** (`w`) — show Jellyfin web URL overlay from info or Now Playing page.
+- **Jump to time** (`j` on Now Playing) — seek to MM:SS or HH:MM:SS via IPC.
+- **Bottom bar live update** — playback position updates every second without cursor movement.
+- **MpV log line numbers** — line numbers and scroll position indicator on the mpv log page.
 - Configurable `mpv_cmd` playback template.
 - `mpv` command/output viewer with `Ctrl+G`.
 - Resume start position from Jellyfin user data.
-- Sort modes:
-  - recently added
-  - last played
-  - premiere date
-  - name
-  - series order
+- Sort modes: recently added, last played, premiere date, name, series order.
 - Sort mode and sort direction persistence.
 - Theme cycling.
 - Simple item cache for faster startup.
@@ -54,16 +59,23 @@ Current features:
 
 Not implemented yet:
 
-- mpv IPC.
-- Now Playing page.
-- Accurate mpv IPC-backed Jellyfin playback progress reporting.
-- Static bitrate/transcoding selection.
+- Audio picker.
+- Better help text / key map cleanup.
+- Split into modules.
+- Build files / Arch packaging.
+- Windows portability.
 
 ## Screenshots
 
 These screenshots use the committed fictional fixture library, not a real Jellyfin server or media collection.
 
-See [THEMES.md](THEMES.md) for the complete named-theme gallery.
+See [THEMES.md](THEMES.md) for the complete 23-theme gallery.
+
+### Now Playing
+
+The Now Playing page (Ctrl+N) with live progress bar, track info, pause state, and quality display. The flagship IPC feature.
+
+![Now Playing screenshot](docs/screenshots/now-playing.svg)
 
 ### Browser
 
@@ -71,23 +83,29 @@ The main library view with the selected item highlighted.
 
 ![Browser screenshot](docs/screenshots/browser.svg)
 
-### Theme Cycle
-
-The browser after a `Ctrl+X` theme cycle.
-
-![Theme cycle screenshot](docs/screenshots/after-ctrl-x.svg)
-
-### Search
-
-Typing `otter` filters the fixture library and shows the current match count.
-
-![Search screenshot](docs/screenshots/search.svg)
-
 ### Item Information
 
 Episode details, stream metadata, and the current subtitle choice.
 
 ![Item information screenshot](docs/screenshots/info.svg)
+
+### Playback Control Menu
+
+The global playback overlay (Ctrl+P) for pause, seek, quality, stop, and Now Playing access.
+
+![Playback control screenshot](docs/screenshots/playback-control.svg)
+
+### Jump to Time
+
+The jump-to-time overlay on the Now Playing page. Type MM:SS or HH:MM:SS to seek via IPC.
+
+![Jump to time screenshot](docs/screenshots/jump-to-time.svg)
+
+### Replace Playback Prompt
+
+The confirmation overlay shown when launching playback while something is already playing.
+
+![Replace prompt screenshot](docs/screenshots/replace-prompt.svg)
 
 ### Subtitle Picker
 
@@ -95,23 +113,23 @@ The per-item subtitle selector opened from the information panel.
 
 ![Subtitle picker screenshot](docs/screenshots/subtitles.svg)
 
+### Search
+
+Typing `otter` filters the fixture library and shows the current match count.
+
+![Search screenshot](docs/screenshots/search.svg)
+
 ### Help
 
 The in-app keyboard reference.
 
 ![Help screenshot](docs/screenshots/help.svg)
 
-### mpv Log
+### Theme Cycle
 
-The captured mpv command and output view.
+The browser after a `Ctrl+X` theme cycle.
 
-![mpv log screenshot](docs/screenshots/mpv-log.svg)
-
-### Refresh State
-
-The browser while a background refresh is in progress.
-
-![Refresh state screenshot](docs/screenshots/refreshing.svg)
+![Theme cycle screenshot](docs/screenshots/after-ctrl-x.svg)
 
 ## Requirements
 
@@ -132,8 +150,6 @@ On Arch/CachyOS:
 ```bash
 sudo pacman -S mpv python-requests python-textual
 ```
-
-Depending on repo/package availability, `pip install textual requests` may be easier during development.
 
 ## Quick start
 
@@ -181,6 +197,95 @@ display_mode = title
 
 [cache]
 refresh_interval_minutes = 10
+
+[playback]
+quality_presets = direct,40mbps,20mbps,12mbps,8mbps,4mbps,2mbps
+default_quality = direct
+```
+
+## Controls
+
+### Browser
+
+```text
+Enter        show selected item info
+Shift+Enter  play selected item immediately
+Tab          next sort mode
+Left/Right   previous/next sort mode while list is focused
+Ctrl+O       toggle ascending/descending sort
+Ctrl+T       toggle title/filename display and search
+Up/Down      move selection; Up at top returns to search
+PageUp/Down  move by a page
+Home/End     jump to first/last shown result
+Typing       from list: return to search and keep typed char
+Esc          clear search
+/pattern     regex search
+Ctrl+R       refresh Jellyfin list in the background
+Ctrl+G       show mpv output
+Ctrl+K       stop active mpv playback
+Ctrl+P       playback control menu
+Ctrl+B       cycle quality / bitrate
+Ctrl+N       now playing page
+Ctrl+X       cycle theme and save it to jbrowse.conf
+Ctrl+H       show help
+Ctrl+C       quit (stops active mpv first)
+```
+
+### Playback controls (when playing)
+
+```text
+Space        pause/play toggle
+, / .        seek -10s / +10s
+```
+
+### Playback control menu (Ctrl+P)
+
+```text
+Space        pause/play toggle
+, / .        seek -10s / +10s
+Ctrl+B       cycle quality
+Ctrl+K       stop playback
+Ctrl+N       now playing page
+w            show Jellyfin web URL
+q/esc/back   close menu
+```
+
+### Info page
+
+```text
+q/backspace  close info
+Enter        play shown item
+s            open subtitle picker
+w            show Jellyfin web URL for this item
+Ctrl+R       refresh Jellyfin list in the background
+←/→          previous/next episode
+[/]          previous/next season
+↑/↓          scroll
+PgUp/PgDn    scroll by page
+Home/End     top/bottom
+```
+
+### Subtitle picker
+
+```text
+↑/↓          select subtitle mode/track
+Enter        apply
+q/backspace  cancel
+```
+
+### Now Playing page
+
+Auto-opens when playback starts. Truncated title shown in bottom bar (e.g. `np: Rick and Morty – S09E02 – 2:34`).
+
+```text
+q/backspace  return to previous page (browser or info)
+Space        pause/play toggle
+, / .        seek -10s / +10s
+j            jump to time overlay (MM:SS or HH:MM:SS)
+s            open subtitle picker
+w            show Jellyfin web URL for this item
+Ctrl+B       cycle quality / bitrate
+Ctrl+G       show mpv log
 ```
 
 ## Config lookup
@@ -205,13 +310,6 @@ Lookup order:
 1. `jbrowse.state` next to the script, if it exists.
 2. `~/.cache/jbrowse/jbrowse.state`.
 
-The state format is:
-
-```ini
-[state]
-deviceid =
-```
-
 ## Item cache
 
 `jbrowse` stores a simple item cache in:
@@ -220,23 +318,7 @@ deviceid =
 jbrowse.items.json
 ```
 
-Lookup/write behavior:
-
-1. Use `jbrowse.items.json` next to the script if it exists.
-2. Otherwise use `~/.cache/jbrowse/jbrowse.items.json`.
-
-The app still logs into Jellyfin on startup, but if the item cache exists it opens from cache first and starts a background refresh.
-
-Manual refresh with `Ctrl+R` fetches a new item list in the background and writes the cache. Refresh status appears in the bottom status bar.
-
-Periodic refresh is controlled by:
-
-```ini
-[cache]
-refresh_interval_minutes = 10
-```
-
-`0` disables periodic refresh. Positive values refresh in the background only if `jbrowse` has been active in the last 10 minutes. Foreground `mpv` playback counts as inactive because the TUI is not running while playback owns the terminal.
+The app opens from cache first, then refreshes in the background.
 
 ## mpv command config
 
@@ -246,183 +328,25 @@ refresh_interval_minutes = 10
 mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
 ```
 
-You can override it in `jbrowse.conf`:
+You can override it in `jbrowse.conf`. Supported placeholders: `$url`, `$filename`, `$title`, `$subtitle`, `$start`.
+
+## Quality presets
+
+The `[playback]` config section controls quality cycling with `Ctrl+B`:
 
 ```ini
-[mpv]
-mpv_cmd = mpv --hwdec=auto --force-media-title="$filename" $subtitle $start "$url"
+[playback]
+quality_presets = direct,40mbps,20mbps,12mbps,8mbps,4mbps,2mbps
+default_quality = direct
 ```
 
-Supported placeholders:
-
-```text
-$url       Jellyfin stream URL, required
-$filename  filename used for mpv's media title
-$title     Jellyfin display title
-$subtitle  --sid=no or --sid=N, omitted for auto subtitles
-$start     --start=SECONDS, omitted when there is no resume position
-```
-
-`{url}` style placeholders also work. Commands are parsed with shell-like quoting, so quote paths or values that contain spaces.
+`direct` uses the original Jellyfin stream URL. Other presets use Jellyfin transcoding with `MaxStreamingBitrate`. Quality changes mid-playback use IPC `loadfile_replace` to maintain position.
 
 ## Server writes
 
-Login, item fetching, screenshot harvesting, and stream URL construction do not write Jellyfin media state. The only intentional server mutations are the registered playback session reports: start, progress, and stopped. After playback returns, `jbrowse` refreshes in the background so local sort/cache data can pick up changed Jellyfin playback metadata. Future features that write additional Jellyfin state, such as manual watched-state changes, metadata edits, deletes, favorites, or played/unplayed toggles, should be documented and explicitly registered when they are added.
-
-For local playback troubleshooting, each playback writes a timestamped `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff` file. It records the exact command, mpv output and exit code, plus whether each Jellyfin playback report was accepted or failed. These local logs can contain stream credentials; do not share them.
-
-## Controls
-
-### Browser
-
-```text
-Enter        show selected item info
-Shift+Enter  play selected item immediately
-Tab          next sort mode
-Left/Right   previous/next sort mode while list is focused
-Ctrl+O       toggle ascending/descending sort
-Ctrl+T       toggle title/filename display and search
-Up/Down      move selection; Up at top returns to search
-PageUp/Down  move by a page
-Home/End     jump to first/last shown result
-Typing       from list: return to search and keep typed char
-Esc          clear search
-/pattern     regex search
-Ctrl+R       refresh Jellyfin list in the background
-Ctrl+G       show mpv output
-Ctrl+K       stop active mpv playback
-Ctrl+X       cycle theme and save it to jbrowse.conf
-Ctrl+L       show help
-F1 or ?      show help
-Ctrl+C       quit (stops active mpv first)
-```
-
-### Info page
-
-```text
-q/backspace  close info
-Enter        play shown item
-s            open subtitle picker
-Ctrl+R       refresh Jellyfin list in the background
-←/→          previous/next episode
-[/]          previous/next season
-↑/↓          scroll
-PgUp/PgDn    scroll by page
-Home/End     top/bottom
-```
-
-### Subtitle picker
-
-```text
-↑/↓          select subtitle mode/track
-Enter        apply
-q/backspace  cancel
-```
-
-The info page's `Progress` field shows Jellyfin's saved resume position as `elapsed / runtime`. It updates after the post-playback background refresh completes. Subtitle choices are runtime-only for now. `auto` keeps mpv's default behavior, `none` disables subtitles, and a selected Jellyfin subtitle stream is passed to `mpv` as a best-effort track selection.
-
-## Search
-
-Normal search is case-insensitive substring search.
-
-Regex search starts with `/`.
-
-Examples:
-
-```text
-/Euphoria.*2160p
-/S0[12]E0[1-9]
-/Batman|Superman
-/Heavy.*Head
-```
-
-Without the leading slash, regex characters are treated literally.
-
-## Sort modes
-
-Valid config values:
-
-```text
-added
-played
-premiere
-name
-series
-```
-
-Display labels:
-
-```text
-recently added
-last played
-premiere date
-name
-series order
-```
-
-`Ctrl+O` toggles descending/ascending.
-
-The top bar shows arrows:
-
-```text
-↓ descending
-↑ ascending
-```
-
-## Themes
-
-A style can be selected with:
-
-```bash
-./jbrowse.py --style path/to/theme.tcss
-```
-
-Or in config:
-
-```ini
-[style]
-path = themes/02-jbrowse-batman-high-contrast.tcss
-```
-
-Relative style paths are resolved relative to `jbrowse.conf`.
-
-`Ctrl+X` cycles discovered `.tcss` files from `themes/`, the script directory, and `~/.config/jbrowse`, then saves the selected one.
-
-The Batman themes are:
-
-```text
-themes/02-jbrowse-batman-high-contrast.tcss
-themes/03-jbrowse-batman-low-contrast.tcss
-```
-
-Place them next to the script or under:
-
-```text
-~/.config/jbrowse/
-```
-
-## Gitignore
-
-Do not commit local runtime files:
-
-```text
-jbrowse.conf
-jbrowse.state
-jbrowse.items.json
-jbrowse.items.json.tmp
-jbrowse.tcss
-tools/screenshot/
-```
-
-Commit named themes under `themes/` instead.
+The only intentional server mutations are the registered playback session reports: start, progress, and stopped. Each playback writes a timestamped `~/.cache/jbrowse/mpv.out-YYYYMMDD-HHMMSS-ffffff` log file. These can contain stream credentials; do not share them.
 
 ## Development notes
-
-The list renderer intentionally uses one `Static` widget instead of Textual `ListView`/`ListItem`. This is for speed with large libraries.
-
-The current playback model starts `mpv` in the background while `jbrowse` stays open. Output is captured for the `Ctrl+G` log page.
-
-Future work should add mpv IPC to the existing `PlaybackManager` for accurate progress, pause/seek controls, and track switching.
 
 Experimental fixture UI screenshots:
 
@@ -430,46 +354,14 @@ Experimental fixture UI screenshots:
 python tools/svg_screenshot_poc.py
 ```
 
-This writes local SVG screenshots under `tools/screenshot/` using committed fictional data from `tools/fake_cache_data.json` or, when present, `tools/fake_cache_data.json.zst`. The output is ignored by git so screenshots can be regenerated freely and only selected documentation images need to be added deliberately.
-
-Feature a specific fictional item in the captures with a title, filename, or series substring:
+Run IPC smoke test against real Jellyfin:
 
 ```bash
-python tools/svg_screenshot_poc.py --item "otter"
+python tools/svg_screenshot_poc.py --ipc-only --real
 ```
 
-Generate the complete named-theme gallery only when it is explicitly needed:
-
-```bash
-python tools/svg_screenshot_poc.py --item "otter" --all-themes
-```
-
-This replaces the tracked SVGs under `docs/themes/`; it is intentionally not part of the routine release harness run.
-
-Browse the same fixture data interactively without contacting Jellyfin or changing the real item cache/config:
+Browse fixture data interactively without contacting Jellyfin:
 
 ```bash
 ./jbrowse.py --fake
 ```
-
-To compress a large fixture file in place:
-
-```bash
-tools/compress_fake_cache.sh
-```
-
-Use your local cache and Jellyfin server only when explicitly wanted:
-
-```bash
-python tools/svg_screenshot_poc.py --real
-```
-
-Real-mode output can contain private media names and remains ignored by git.
-
-Optional fake playback capture smoke test:
-
-```bash
-python tools/svg_screenshot_poc.py --playback-smoke
-```
-
-This uses a no-video fake player command that prints output every 0.5 seconds for about 3 seconds, then verifies the captured command/output path.

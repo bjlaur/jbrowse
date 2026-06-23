@@ -1,5 +1,191 @@
 # CHANGELOG.md
 
+## 0.0.34 - 2026-06-23 — IPC Features
+
+### Agent 1 — Manual testing fixes round 2
+
+Code changes (jbrowse.py):
+- Removed F1 help key (Textual intercepts it). Use `Ctrl+L` or `?` instead. Added no-F-keys policy to AGENTS.md.
+- Ctrl+K from Now Playing: returns to `previous_page` (info) instead of hardcoded browser.
+- Same-item Enter: pressing Enter on the currently playing item opens Now Playing directly instead of showing replace prompt.
+- Replace prompt text: changed to `"Enter → replace"` / `"Backspace → cancel"` format. Panel title: "Replace Playback".
+- Ctrl+B quality change: seek-back delay increased from 0.5s to 1.0s for more reliable position preservation.
+- Info page Progress poll: added `self.refresh()` to force screen update without cursor movement.
+- Progress display: uses Jellyfin runtime (`item.runtime_ticks`) instead of mpv IPC duration for total time.
+
+Harness changes (tools/svg_screenshot_poc.py):
+- Added `--real-mpv-bitrate` flag and `run_real_mpv_bitrate_test()`: plays Euphoria 2160p file, cycles quality twice, verifies bitrate changes and position preserved via IPC.
+- Added `ctrl-b-bitrate` fake capture: cycles quality twice, verifies quality label updates.
+- Added `info-progress-auto-update` capture: verifies info page renders with IPC position after 1.5s wait.
+- Updated `replace-prompt` capture expected text to match new format.
+- Fixed `web-url` capture: removed `example.invalid` from expected text (works with both fake and real modes).
+- Added IPC connection wait in bitrate test.
+- Added stale IPC socket cleanup before bitrate test.
+
+Documentation:
+- Created `ipc-retest-checklist.md` with all test requests, harness/manual/dev/agent notes columns.
+- Added "Special Notes for Agents" section with gotchas (F1, Ctrl+H, web URL overlay guards, etc.).
+- Added usage instructions for agents and users.
+- Updated AGENTS.md with latest fixes and no-F-keys policy.
+- Created `claude-didn't-listen.md` report documenting missed harness tests.
+
+### Agent 2 — Manual testing fixes round 2 (branch: ipc-retest-round2-fixes)
+
+Code changes (jbrowse.py):
+- Bottom bar live update: added `_start_bottom_bar_poll()` and `_poll_bottom_bar()` timer that updates `bottom_status` widget every second during playback (previously required cursor movement).
+- Ctrl+K from Now Playing: stops playback and returns to `previous_page` (info) instead of hardcoded browser.
+- Same-item Enter: pressing Enter on the currently playing item opens Now Playing directly instead of showing replace prompt.
+- Jump-to-time feature: press `j` on Now Playing page to open time jump overlay. Supports MM:SS and HH:MM:SS formats, ←/→ seek ±10s, Enter to jump, q to cancel. Uses IPC `seek_to()`.
+- Overlay guards: `_poll_now_playing()` and `_render_now_playing()` skip re-rendering when `_jump_to_time_visible` is set.
+
+Harness changes (tools/svg_screenshot_poc.py):
+- Added `--real-mpv-jump` flag and `run_real_mpv_jump_test()`: plays real item, jumps to 30s and 60s, verifies position via IPC.
+- Added `jump-to-time` fake capture: verifies overlay renders with timeline bar and time input.
+- Added `ctrl-b-bitrate` fake capture: cycles quality twice, verifies quality label updates.
+
+Documentation:
+- Updated `ipc-retest-checklist.md` with round 2 agent notes and re-test results.
+- Updated `TODO.md` with completed items.
+
+### Agent 2 — Fix --real tests (branch: real-mpv-bitrate-fix)
+
+Root cause: `run_real_mpv_bitrate_test()` launched mpv through the Textual test harness (`app.run_test()` + `pilot.press()`), which called `start_background()` on the asyncio event loop thread. The blocking `_ipc_connect()` call froze the event loop, preventing IPC from connecting.
+
+Fix for `--real-mpv-bitrate`:
+- Rewrote `run_real_mpv_bitrate_test()` to use the hybrid approach: start playback via `PlaybackManager.start_background()` directly (before the Textual harness), then pass the pre-connected manager to `BrowseApp` via the `playback_manager` constructor parameter.
+- Added position preservation checks: verifies video does NOT restart after each quality cycle (position stays within 50% of pre-cycle value).
+- All 3 quality cycles (direct→40mbps→20mbps) verified with position preservation.
+
+Fix for `--real-mpv-jump`:
+- Increased `play_duration` default from 3s → 5s.
+- Added wait loop for mpv to actually begin playing (up to 10s polling `time-pos > 0.5`).
+- Increased post-jump wait from 2s → 3s for seek to complete.
+- Both jumps (30s, 60s) verified.
+
+Known issues:
+- Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
+
+### For-next-release fixes (branch: ipc-testing-fixes)
+
+Code changes (jbrowse.py):
+- Help key: changed from `Ctrl+L`/`?` to `Ctrl+H` (removed `?` binding entirely per user request).
+- Bottom bar poll: `_poll_bottom_bar()` now calls `update_bottom_status()` (page-aware) instead of `bottom_status_text()` directly — fixes subtitle status being overwritten during playback.
+- MpV log scroll indicator: changed from `█░` block characters to `[####----] 42%` text format — renders correctly in SVG export.
+- Now Playing progress bar: same `█░` → `[###---]` text format for SVG safety.
+- Playback-end page return: when mpv closes while on Now Playing page, returns to `previous_page` (info) instead of hardcoded browser.
+
+Documentation:
+- Created `for-next-release.md` tracking doc for deferred items.
+- Updated README.md help key binding.
+- Updated AGENTS.md and TODO.md.
+
+### Ctrl+P fix (other agent)
+- Changed `use_command_palette = False` to `ENABLE_COMMAND_PALETTE = False` (correct Textual API).
+- Harness capture updated to verify Ctrl+P opens playback control menu.
+
+### Harness optimization (other agent)
+- Reduced `settle()` pause from 1.0s → 0.3s.
+- Added `quick_settle()` for views that just pressed a key (skips full style cache clear).
+- Reduced Ctrl+X theme cycle pause from 0.2s → 0.1s.
+- Full harness: 1m24s → 31s (62% faster), all 31 captures pass.
+
+### Phase 1 — Low-level mpv IPC layer
+- `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.
+- Socket connect with retry, JSON command/response with request_id matching.
+- Public API: `ipc_get_property`, `ipc_set_property`, `ipc_command`.
+- High-level helpers: `toggle_pause`, `seek_to`, `seek_relative`, `loadfile_replace`, `set_track`, `stop_via_ipc`.
+- `stop_active()` tries IPC `stop` first, falls back to `terminate()`.
+- `--ipc-only` flag on screenshot harness for fast IPC-only smoke testing.
+- `--play-duration` flag controls smoke test play time before position check.
+
+### Phase 2 — Accurate Jellyfin playback reporting
+- `position_ticks()` uses IPC `time-pos` first, falls back to wall-clock.
+- Periodic progress reporter thread sends `/Sessions/Playing/Progress` every 5s via IPC.
+- `playback_payload()` reads `pause` state from IPC instead of hardcoding `False`.
+- Bottom status bar shows live playback state with position: `np: <title> – <MM:SS>`.
+- Verified server-side: all Jellyfin start/progress/stopped reports accepted with accurate positions.
+
+### Phase 3 — Replace-current-playback prompt
+- Confirmation overlay when trying to play while something is already active.
+- Shows "Already playing" with current item, "Play this instead?" with new item, `y play  n cancel`.
+- On confirm: stops old Jellyfin session, uses IPC `loadfile_replace` for seamless transition.
+
+### Phase 4 — Pause/stop/seek controls
+- `Space` toggles pause/play via IPC.
+- `,` / `.` seek -10s / +10s via IPC `seek_relative`.
+- `Ctrl+K` already existed for stop (unchanged).
+- Help page updated with new playback controls.
+
+### Phase 5 — Now Playing page
+- New `now_playing` page, opened with `Ctrl+N`.
+- Progress bar with `█░` blocks, position/duration from IPC.
+- State display: playing/paused, video/audio/subtitle track info from IPC `track-list`.
+- Backspace/q returns to `previous_page` (info or browser), not hardcoded browser.
+- Web URL overlay (`w` key) not overwritten by 1-second poll timer.
+- Ctrl+B shows 3-second quality flash message on-page.
+
+### Phase 6 — Static bitrate selection
+- `[playback]` config section: `quality_presets` and `default_quality`.
+- `Ctrl+B` cycles through quality presets (direct → 40mbps → 20mbps → ...).
+- On change: gets `time-pos` via IPC, builds transcoding URL with `MaxStreamingBitrate`, uses `loadfile_replace`.
+- Quality shown in Now Playing page and playback control menu.
+
+### Playback control menu (Ctrl+P)
+- Global overlay accessible from any page.
+- `ENABLE_COMMAND_PALETTE = False` set as class attribute to prevent Textual command palette conflict.
+- Shows current playback state: title, position/duration, quality.
+- Key actions: Space pause, `,`/`. seek, Ctrl+B quality, Ctrl+K stop, Ctrl+N now playing.
+- `q`/`Escape`/`backspace` closes and returns to browser.
+
+### Info page live progress
+- Progress line uses regex match to avoid duplicate (add_kv format has no colon).
+- 1-second auto-update poll when info page is open for the currently playing item.
+
+### MpV log improvements
+- Line numbers added to mpv log page.
+- Scroll position indicator (█░ bar + percentage) shown when content is scrollable.
+
+### Harness optimization (branch: `optimize-full-harness`)
+- Reduced `settle()` pause from 1.0s → 0.3s
+- Added `quick_settle()` for views that just pressed a key (skips full style cache clear)
+- Reduced Ctrl+X theme cycle pause from 0.2s → 0.1s
+- Full harness: **1m24s → 31s (62% faster)**, all 31 captures pass
+- Only cosmetic diffs (CSS class ID randomization) vs baseline
+
+Testing:
+- Passed `python -m py_compile jbrowse.py tools/svg_screenshot_poc.py`.
+- Passed `python tools/svg_screenshot_poc.py --item otter` (31 screenshots, all pass in ~31s).
+- Passed `python tools/svg_screenshot_poc.py --ipc-only --real --play-duration 10` — IPC time-pos ≈ elapsed time.
+- Verified Jellyfin playback reports show accepted progress at accurate positions in local playback log.
+- Help page updated with all new hotkeys (Space, comma, period, Ctrl+B, Ctrl+N, Ctrl+P).
+- New harness captures: mpv-log-scrolled, info-playing, now-playing-quality, playback-control-menu, ctrl-k-stop, ctrl-p-from-browser, space-pause, seek-comma-period, bottom-bar-format, bottom-bar-long-name, replace-n-to-info, info-backspace-to-browser, now-playing-backspace-to-info, web-url-info-overlay, web-url-now-playing-overlay, ctrl-b-bitrate, info-progress-auto-update.
+- Updated screenshot harness: 31 total captures; FixtureClient has state.deviceid; fake toggle_pause toggles state.
+
+Manual release check:
+- Open app, play an item — Now Playing page should auto-show (no Ctrl+N needed).
+- Press `Space` — should toggle pause, bottom bar state should update.
+- Press `,` / `.` — should seek ±10s, position should update in bottom bar.
+- Press `Ctrl+B` — quality should cycle, 3-second flash message shown on Now Playing page.
+- Press `Ctrl+P` — playback control menu should appear with all controls (not Textual command palette).
+- Press `w` on info page or Now Playing page — Jellyfin web URL overlay should appear and stay visible for 3+ seconds.
+- Play an item, navigate to another, press Enter at info — replace prompt should appear with "Already playing" / "Play this instead?" wording.
+- Press `y` — new item should start playing, old Jellyfin session should be stopped.
+- Press `Ctrl+G` during playback — mpv log page should still work with line numbers.
+- Press `Ctrl+K` — should stop playback via IPC.
+- Bottom bar should show `np: <title> – <MM:SS>` format (e.g. `np: Rick and Morty – S09E02 – 2:34`).
+- Info page Progress line should update live from IPC during playback (not just cached Jellyfin data), auto-updates without cursor movement.
+- Open info page for playing item, press q/backspace → returns to browser. Open info → play → backspace from Now Playing → returns to info page.
+
+### Docs and screenshots (this release cycle)
+
+- Reorganized `docs/` into release-based structure: `docs/release-0.0.34/` and `docs/future-release/`.
+- Updated README screenshots: selected best 10 from 31 harness captures per `docs/release-0.0.34/screenshot-analysis.md`.
+- New README screenshots: now-playing, playback-control, jump-to-time, replace-prompt.
+- Removed from README: mpv-log, refreshing (ranked lowest).
+- Full theme gallery regenerated: all 23 themes render cleanly in `docs/themes/`.
+- Updated help text with missing keys: `w`, `j`, `?`.
+- Version bumped to 0.0.34.
+
 ## 0.0.33 - 2026-06-20
 
 Screenshot fixture and theme gallery release.
@@ -48,7 +234,7 @@ Changes:
 - Keep estimated Jellyfin playback reporting based on elapsed process runtime.
 - Trigger background refresh when background playback ends.
 - Updated help text with the new `Ctrl+G` hotkey.
-- Added an SVG harness capture for the `mpv log` page using fake output.
+- Added an SVG harness capture for the `mpv` log page using fake output.
 - Added an opt-in fake playback smoke test with `tools/svg_screenshot_poc.py --playback-smoke`.
 
 Testing summary:

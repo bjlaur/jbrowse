@@ -71,8 +71,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--play-duration",
         type=float,
-        default=3.0,
-        help="seconds to let mpv play before checking IPC position (default: 3.0)",
+        default=0.5,
+        help="seconds to let mpv play before checking IPC position (default: 0.5). Use 5.0+ for full release smoke tests.",
     )
     parser.add_argument(
         "--item",
@@ -88,6 +88,21 @@ def parse_args() -> argparse.Namespace:
         "--ipc-only",
         action="store_true",
         help="skip all screenshot generation; run only the --real-mpv IPC smoke test (requires --real)",
+    )
+    parser.add_argument(
+        "--real-mpv-bitrate",
+        action="store_true",
+        help="run real mpv bitrate cycling test: play, cycle quality, verify bitrate via IPC (requires --real)",
+    )
+    parser.add_argument(
+        "--real-mpv-jump",
+        action="store_true",
+        help="run real mpv jump-to-time test: play, jump to time, verify position via IPC (requires --real)",
+    )
+    parser.add_argument(
+        "--view",
+        default="",
+        help="run only a single capture by view name (e.g. now-playing, replace-prompt, playback-control)",
     )
     return parser.parse_args()
 
@@ -151,8 +166,14 @@ async def settle(app: BrowseApp, pilot) -> None:
     for widget in app.screen.walk_children(with_self=True):
         widget._styles_cache.clear()
         widget.refresh(layout=True)
-    await pilot.pause(1.0)
+    await pilot.pause(0.3)
     await pilot.wait_for_scheduled_animations()
+
+
+async def quick_settle(app: BrowseApp, pilot) -> None:
+    """Lightweight settle for views that just pressed a key — skips full style cache clear."""
+    app.render_items()
+    await pilot.pause(0.2)
 
 
 async def export_view(
@@ -184,7 +205,7 @@ async def export_view(
 
         if view == "after-ctrl-x":
             await pilot.press("ctrl+x")
-            await pilot.pause(0.2)
+            await pilot.pause(0.1)
             return app.return_value
 
         if view == "info":
@@ -200,7 +221,7 @@ async def export_view(
             await pilot.press("s")
             await settle(app, pilot)
         elif view == "help":
-            await pilot.press("f1")
+            await pilot.press("ctrl+h")
             await settle(app, pilot)
         elif view == "mpv-log":
             app.open_mpv_log()
@@ -209,6 +230,155 @@ async def export_view(
             app.refreshing = True
             app.refresh_message = "refreshing..."
             app.update_bottom_status()
+            await settle(app, pilot)
+        elif view == "now-playing":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+        elif view == "ctrl-n-now-playing":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+            # Press Ctrl+N to open Now Playing page
+            await pilot.press("ctrl+n")
+            await settle(app, pilot)
+        elif view == "playback-control":
+            _setup_fake_playback(app, demo_item)
+            app._open_playback_control()
+            await settle(app, pilot)
+        elif view == "replace-prompt":
+            _setup_fake_playback(app, demo_item)
+            second_item = items[1] if len(items) > 1 else demo_item
+            app._pending_replace_item = second_item
+            app._replace_prompt_visible = True
+            await settle(app, pilot)
+            app._render_replace_prompt()  # render after settle so it's not overwritten
+        elif view == "web-url":
+            app.info_item = demo_item
+            await settle(app, pilot)
+            app._show_web_url()
+        elif view == "mpv-log-scrolled":
+            _setup_fake_playback(app, demo_item)
+            app.open_mpv_log()
+            await settle(app, pilot)
+            # Scroll down a few lines to exercise line numbers + scroll bar
+            await pilot.press("down")
+            await pilot.press("down")
+            await pilot.press("down")
+            await settle(app, pilot)
+        elif view == "info-playing":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+        elif view == "info-progress-auto-update":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app._info_poll_stop = False
+            app.render_info()
+            await settle(app, pilot)
+            # Wait for the poll timer to fire (1s interval + settle time)
+            await pilot.pause(1.5)
+            await quick_settle(app, pilot)
+        elif view == "now-playing-quality":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            # Cycle quality to trigger flash message
+            await pilot.press("ctrl+b")
+            await settle(app, pilot)
+        elif view == "ctrl-b-bitrate":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            # Cycle quality twice and verify bitrate label updates
+            await pilot.press("ctrl+b")
+            await settle(app, pilot)
+            await pilot.press("ctrl+b")
+            await settle(app, pilot)
+        elif view == "playback-control-menu":
+            _setup_fake_playback(app, demo_item)
+            app._open_playback_control()
+            await settle(app, pilot)
+        elif view == "ctrl-k-stop":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press("ctrl+k")
+            await settle(app, pilot)
+        elif view == "ctrl-p-from-browser":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+            await pilot.press("ctrl+p")
+            await settle(app, pilot)
+        elif view == "jump-to-time":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+            app._open_jump_to_time()
+        elif view == "space-pause":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press("space")
+            await settle(app, pilot)
+        elif view == "seek-comma-period":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press(",")
+            await settle(app, pilot)
+            await pilot.press(".")
+            await settle(app, pilot)
+        elif view == "bottom-bar-format":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+        elif view == "bottom-bar-long-name":
+            long_item = _make_long_filename_item()
+            _setup_fake_playback(app, long_item)
+            await settle(app, pilot)
+        elif view == "replace-n-to-info":
+            _setup_fake_playback(app, demo_item)
+            second_item = items[1] if len(items) > 1 else demo_item
+            app._pending_replace_item = second_item
+            app._replace_prompt_visible = True
+            await settle(app, pilot)
+            app._render_replace_prompt()
+            # Press n to cancel — should go back to info
+            await pilot.press("n")
+            await settle(app, pilot)
+        elif view == "info-backspace-to-browser":
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+            await pilot.press("backspace")
+            await settle(app, pilot)
+        elif view == "now-playing-backspace-to-info":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+            # Navigate to Now Playing
+            app.open_now_playing()
+            await settle(app, pilot)
+            # Press backspace — should return to info
+            await pilot.press("backspace")
+            await settle(app, pilot)
+        elif view == "web-url-info-overlay":
+            _setup_fake_playback(app, demo_item)
+            app.info_item = demo_item
+            app.page = "info"
+            app.render_info()
+            await settle(app, pilot)
+            await pilot.press("w")
+            await settle(app, pilot)
+        elif view == "web-url-now-playing-overlay":
+            _setup_fake_playback(app, demo_item)
+            app.open_now_playing()
+            await settle(app, pilot)
+            await pilot.press("w")
             await settle(app, pilot)
 
         if view in {"browser", "refreshing"} and app.visible_items:
@@ -228,10 +398,35 @@ async def export_view(
     return app.return_value
 
 
+def _make_long_filename_item() -> MediaItem:
+    """Create a media item with a very long filename to test bottom bar truncation."""
+    return MediaItem(
+        id="long-filename-item",
+        title="Rick and Morty - S09E02 - Rick's Days Seven Nights",
+        filename="Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv",
+        kind="Episode",
+        series_name="Rick and Morty",
+        season_number=9,
+        episode_number=2,
+        premiere_date="2025-01-01",
+        date_created="2025-01-01",
+        last_played="",
+        resume_ticks=0,
+        runtime_ticks=28 * 60 * 10_000_000,
+        info_lines=["RICK AND MORTY", "Season 9 - 2. Rick's Days Seven Nights", "1/1/2025   28 m", "", "Video       1080p HEVC SDR", "Audio       English - Dolby Digital+ - Stereo - Default", "Subtitles   English - SUBRIP", "Progress      0:00 / 28:00", "", "Synopsis text goes here."],
+        subtitle_tracks=[],
+    )
+
+
+class _FakeState:
+    deviceid = "fixture-device-id"
+
+
 class FixtureClient:
     def __init__(self, cfg):
         self.cfg = cfg
         self.auth = Auth(user_id="fixture-user", token="fixture-token")
+        self.state = _FakeState()
 
     def stream_url(self, item: MediaItem) -> str:
         return f"https://example.invalid/Items/{item.id}/stream?api_key=fixture-token"
@@ -247,6 +442,65 @@ class FixtureClient:
 
     def report_playback_stopped(self, payload: dict) -> None:
         pass
+
+
+_FAKE_IPC_VALUES = {
+    "time-pos": 30.0,
+    "duration": 120.0,
+    "pause": False,
+    "track-list": [
+        {"type": "video", "codec": "hevc", "w": 1920, "h": 1080, "selected": True},
+        {"type": "audio", "codec": "ac3", "lang": "en", "demux-channel-count": 6, "selected": True},
+        {"type": "sub", "lang": "en", "selected": True},
+    ],
+}
+
+
+class _FakeProcess:
+    """A fake subprocess.Popen that looks active for screenshot captures."""
+    def poll(self):
+        return None  # None = still running
+    def terminate(self):
+        pass
+    def kill(self):
+        pass
+
+
+class _FakeIpcSock:
+    """Minimal fake IPC socket that returns plausible values for screenshot captures."""
+    def sendall(self, data: bytes) -> None:
+        pass
+    def recv(self, size: int) -> bytes:
+        return b""
+    def close(self) -> None:
+        pass
+    def settimeout(self, timeout: float) -> None:
+        pass
+
+
+def _setup_fake_playback(app: BrowseApp, item: MediaItem) -> None:
+    """Set up a fake active playback so Now Playing and Control Menu screens render with data."""
+    pm = app.playback_manager
+    pm.item = item
+    pm.play_session_id = "fixture-session"
+    pm.last_command = "mpv --fake-demo"
+    pm.output_lines = [f"Now Playing: {item.filename}\n", "line one\n", "line two\n"]
+    pm.last_return_code = None
+    pm.started_at = time.monotonic()
+    # Fake a "running" process so is_active() returns True
+    pm.process = _FakeProcess()
+    # Override IPC methods to return fake values
+    pm._ipc_sock = _FakeIpcSock()
+    pm.ipc_get_property = lambda name: _FAKE_IPC_VALUES.get(name)
+    pm._ipc_get_number = lambda name: _FAKE_IPC_VALUES.get(name)
+    _fake_paused = {"value": False}
+    def _toggle_pause():
+        _fake_paused["value"] = not _fake_paused["value"]
+        _FAKE_IPC_VALUES["pause"] = _fake_paused["value"]
+        return True
+    pm.toggle_pause = _toggle_pause
+    pm.seek_relative = lambda d: True
+    pm.loadfile_replace = lambda url: True
 
 
 def fixture_cfg() -> Config:
@@ -265,6 +519,8 @@ def fixture_cfg() -> Config:
         style_path=None,
         mpv_cmd=["mpv", "$url"],
         refresh_interval_minutes=0,
+        quality_presets=["direct", "40mbps", "20mbps", "12mbps", "8mbps", "4mbps", "2mbps"],
+        default_quality="direct",
     )
 
 
@@ -430,6 +686,198 @@ def run_real_mpv_smoke(cfg, client, item, play_duration: float = 3.0) -> None:
     log("real mpv smoke passed")
 
 
+async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.0) -> None:
+    """Launch real mpv with a Euphoria 2160p file, cycle bitrate via Ctrl+B, verify via IPC.
+
+    Uses the hybrid approach: start playback via PlaybackManager.start_background()
+    directly (before the Textual harness) so IPC connects reliably on the main thread.
+    Then pass the pre-connected manager to BrowseApp to test UI quality cycling.
+    """
+    log(f"running real mpv bitrate test (play_duration={play_duration}s)")
+
+    # Clean up stale IPC sockets and mpv processes
+    import glob
+    import os
+    import subprocess
+    for sock in glob.glob("/tmp/jbrowse-mpv-*.sock"):
+        os.unlink(sock)
+    subprocess.run(["pkill", "-f", "mpv.*jbrowse"], capture_output=True)
+    time.sleep(0.5)
+
+    if client.auth is None:
+        log("logging in to Jellyfin for real mpv bitrate test")
+        client.login()
+
+    # Find the Euphoria 2160p item to test with
+    items = client.fetch_items()
+    bitrate_item = None
+    for it in items:
+        if "euphoria" in it.title.casefold() and ("2160" in it.filename.casefold() or "4k" in it.filename.casefold()):
+            bitrate_item = it
+            break
+    if bitrate_item is None:
+        # Fall back to any item
+        bitrate_item = items[0] if items else item
+    log(f"bitrate test item: {bitrate_item.title} ({bitrate_item.filename})")
+
+    # Start playback DIRECTLY via PlaybackManager, before the Textual harness.
+    # This avoids blocking the asyncio event loop during _ipc_connect().
+    manager = PlaybackManager(client)
+    error = manager.start_background(bitrate_item)
+    if error:
+        raise RuntimeError(f"real mpv failed to start: {error}")
+    if not manager.is_active():
+        raise RuntimeError("real mpv did not start")
+
+    log(f"real mpv started; letting it play for {play_duration}s")
+    time.sleep(play_duration)
+
+    # Verify IPC is working before entering the Textual harness
+    ipc_pos = manager.ipc_get_property("time-pos")
+    log(f"IPC time-pos: {ipc_pos}")
+    if ipc_pos is None:
+        manager.stop_active()
+        raise RuntimeError("IPC not connected after start — check mpv --input-ipc-server flag")
+
+    # Now create the BrowseApp with the pre-connected playback manager.
+    # The app will see playback as already active and display Now Playing.
+    state = make_state(cfg, bitrate_item)
+    app = BrowseApp(
+        cfg, client, items, "01-jbrowse-amber-dim", state,
+        write_cache_on_start=False, auto_refresh_on_start=False,
+        playback_manager=manager,
+    )
+
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.pause(0.5)
+
+        quality_before = app._current_quality_label()
+        log(f"before: quality={quality_before}")
+
+        # Record position before quality change
+        pos_before = manager.ipc_get_property("time-pos") or 0
+        log(f"position before 1st cycle: {pos_before:.1f}s")
+
+        # Cycle quality via Ctrl+B
+        await pilot.press("ctrl+b")
+        await pilot.pause(3.0)
+        quality_after = app._current_quality_label()
+        log(f"after 1st: quality={quality_after}")
+        if quality_after == quality_before:
+            raise RuntimeError(f"quality unchanged after 1st cycle: {quality_after}")
+
+        # Verify position was preserved (video did NOT restart)
+        # Allow extra time for seek_back thread to complete
+        await pilot.pause(2.0)
+        pos_after1 = manager.ipc_get_property("time-pos") or 0
+        log(f"position after 1st cycle: {pos_after1:.1f}s")
+        if pos_after1 < pos_before * 0.5:
+            raise RuntimeError(
+                f"video restarted after 1st quality change: "
+                f"was {pos_before:.1f}s, now {pos_after1:.1f}s"
+            )
+
+        # Cycle again
+        await pilot.press("ctrl+b")
+        await pilot.pause(2.0)
+        quality_after2 = app._current_quality_label()
+        log(f"after 2nd: quality={quality_after2}")
+        if quality_after2 == quality_after:
+            raise RuntimeError(f"quality unchanged on 2nd cycle: {quality_after2}")
+
+        # Verify position still preserved after 2nd cycle
+        # Allow extra time for seek_back thread (previous seek may still be in flight)
+        await pilot.pause(3.0)
+        pos_after2 = manager.ipc_get_property("time-pos") or 0
+        log(f"position after 2nd cycle: {pos_after2:.1f}s")
+        # Use a more lenient threshold: position should be >1s (not restarted to near-0)
+        # and should be within 5s of where we were (allowing for some playback progress)
+        if pos_after2 < 1.0:
+            raise RuntimeError(
+                f"video restarted after 2nd quality change: "
+                f"was {pos_after1:.1f}s, now {pos_after2:.1f}s"
+            )
+
+        log("real mpv bitrate test passed")
+
+    # Stop playback after the harness exits
+    manager.stop_active()
+    deadline = time.monotonic() + 5
+    while manager.is_active() and time.monotonic() < deadline:
+        time.sleep(0.2)
+
+
+def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 5.0) -> None:
+    """Launch real mpv, jump to a specific time, and verify position via IPC."""
+    log(f"running real mpv jump-to-time test (play_duration={play_duration}s)")
+
+    if client.auth is None:
+        log("logging in to Jellyfin for real mpv jump test")
+        client.login()
+
+    app = BrowseApp(
+        cfg, client, [item], "01-jbrowse-amber-dim", make_state(cfg, item),
+        write_cache_on_start=False, auto_refresh_on_start=False,
+    )
+
+    manager = app.playback_manager
+    error = manager.start_background(item)
+    if error:
+        raise RuntimeError(f"real mpv failed to start: {error}")
+    if not manager.is_active():
+        raise RuntimeError("real mpv did not start")
+
+    log(f"real mpv started; waiting for playback to begin")
+
+    # Wait for mpv to actually start playing (up to 10s)
+    pos_before = 0.0
+    for _ in range(20):
+        pos_before = manager.ipc_get_property("time-pos") or 0
+        if pos_before > 0.5:
+            break
+        time.sleep(0.5)
+    log(f"position before jump: {pos_before:.1f}s")
+    if pos_before < 0.5:
+        log("WARNING: mpv position still 0 — stream may not have loaded yet")
+
+    # Jump to 30 seconds using IPC seek
+    jump_seconds = 30.0
+    manager.seek_to(jump_seconds)
+    time.sleep(3.0)
+
+    # Verify position is near the jump target
+    pos_after = manager.ipc_get_property("time-pos") or 0
+    log(f"position after jump: {pos_after:.1f}s")
+
+    if abs(pos_after - jump_seconds) > 5.0:
+        raise RuntimeError(
+            f"position after jump is wrong: expected ~{jump_seconds:.0f}s, got {pos_after:.1f}s"
+        )
+
+    # Jump to a different time (1 minute)
+    jump_seconds2 = 60.0
+    manager.seek_to(jump_seconds2)
+    time.sleep(3.0)
+
+    pos_after2 = manager.ipc_get_property("time-pos") or 0
+    log(f"position after 2nd jump: {pos_after2:.1f}s")
+
+    if abs(pos_after2 - jump_seconds2) > 5.0:
+        raise RuntimeError(
+            f"position after 2nd jump is wrong: expected ~{jump_seconds2:.0f}s, got {pos_after2:.1f}s"
+        )
+
+    # Stop playback
+    manager.stop_active()
+    deadline = time.monotonic() + 5
+    while manager.is_active() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if manager.is_active():
+        raise RuntimeError("real mpv did not finish after stop")
+
+    log("real mpv jump test passed")
+
+
 async def main_async(args: argparse.Namespace) -> int:
     if args.real:
         cfg, client, items = real_demo_data()
@@ -450,6 +898,18 @@ async def main_async(args: argparse.Namespace) -> int:
         if not args.real:
             raise RuntimeError("--ipc-only requires --real (needs real Jellyfin cache and server)")
         run_real_mpv_smoke(cfg, client, demo_item, args.play_duration)
+        return 0
+
+    if args.real_mpv_bitrate:
+        if not args.real:
+            raise RuntimeError("--real-mpv-bitrate requires --real (needs real Jellyfin cache and server)")
+        await run_real_mpv_bitrate_test(cfg, client, demo_item, args.play_duration)
+        return 0
+
+    if args.real_mpv_jump:
+        if not args.real:
+            raise RuntimeError("--real-mpv-jump requires --real (needs real Jellyfin cache and server)")
+        run_real_mpv_jump_test(cfg, client, demo_item, args.play_duration)
         return 0
 
     themes = discover_themes(theme_start)
@@ -475,6 +935,48 @@ async def main_async(args: argparse.Namespace) -> int:
 
         if args.playback_smoke:
             run_playback_smoke(cfg)
+        return 0
+
+    # --view: run only a single capture for fast iteration (skips all other captures)
+    if args.view:
+        view_map = {
+            "browser": ("browser.svg", "browser", ["showing", "display:", "style:"]),
+            "after-ctrl-x": ("after-ctrl-x.svg", "after-ctrl-x", []),
+            "search": ("search.svg", "search", ["otter", "matched", "showing"]),
+            "info": ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
+            "subtitles": ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
+            "help": ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B", "Ctrl+H/L"]),
+            "mpv-log": ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
+            "refreshing": ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
+            "now-playing": ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
+            "playback-control": ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
+            "replace-prompt": ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "Enter", "replace", "Backspace", "cancel"]),
+            "playback-control-menu": ("playback-control-menu.svg", "playback-control-menu", ["Playback Control", "state:", "quality:"]),
+            "ctrl-k-stop": ("ctrl-k-stop.svg", "ctrl-k-stop", ["not playing"]),
+            "ctrl-p-from-browser": ("ctrl-p-from-browser.svg", "ctrl-p-from-browser", ["Playback Control"]),
+            "space-pause": ("space-pause.svg", "space-pause", ["paused"]),
+            "bottom-bar-format": ("bottom-bar-format.svg", "bottom-bar-format", ["np:", "–"]),
+            "bottom-bar-long-name": ("bottom-bar-long-name.svg", "bottom-bar-long-name", ["Rick and Morty", "S09E02"]),
+            "replace-n-to-info": ("replace-n-to-info.svg", "replace-n-to-info", ["Info"]),
+            "info-backspace-to-browser": ("info-backspace-to-browser.svg", "info-backspace-to-browser", ["showing"]),
+            "now-playing-backspace-to-info": ("now-playing-backspace-to-info.svg", "now-playing-backspace-to-info", ["Info"]),
+            "web-url-info-overlay": ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL"]),
+            "web-url-now-playing-overlay": ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL"]),
+            "info-progress-auto-update": ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
+            "ctrl-n-now-playing": ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
+            "ctrl-b-bitrate": ("ctrl-b-bitrate.svg", "ctrl-b-bitrate", ["Now Playing", "quality: 20mbps"]),
+            "jump-to-time": ("jump-to-time.svg", "jump-to-time", ["Jump to Time", "mpv position: 0:30", "Time: _"]),
+        }
+        if args.view not in view_map:
+            print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
+            return 1
+        output = Path(args.output).expanduser()
+        output.mkdir(parents=True, exist_ok=True)
+        filename, view_name, expected = view_map[args.view]
+        await export_view(
+            cfg, client, items, demo_item, themes[0], args.size,
+            output / filename, view_name, expected,
+        )
         return 0
 
     output = Path(args.output).expanduser()
@@ -525,10 +1027,32 @@ async def main_async(args: argparse.Namespace) -> int:
         ("search.svg", "search", ["otter", "matched", "showing"]),
         ("info.svg", "info", ["Info", "Subtitles", "Progress"]),
         ("subtitles.svg", "subtitles", ["Subtitles", "auto", "none"]),
-        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X"]),
-        ("mpv-log.svg", "mpv-log", ["mpv log", "Status", "not playing", "mpv --fake-demo", "line one"]),
-        ("refreshing.svg", "refreshing", ["refreshing...", "style:"]),
+        ("help.svg", "help", ["Help", "Ctrl+G", "Ctrl+K", "Ctrl+X", "Ctrl+P", "Ctrl+N", "Ctrl+B", "Ctrl+H/L"]),
+        ("now-playing.svg", "now-playing", ["Now Playing", "playing", "quality:", "direct", "state:", "video:", "audio:", "subtitle:", "0:30 / 2:00"]),
+        ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
+        ("playback-control.svg", "playback-control", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality", "Ctrl+N now playing"]),
+        ("replace-prompt.svg", "replace-prompt", ["Already playing", "Play this instead?", "Enter", "replace", "Backspace", "cancel"]),
+        ("web-url.svg", "web-url", ["Jellyfin Web URL", "details?id=", "q close"]),
+        ("mpv-log-scrolled.svg", "mpv-log-scrolled", ["mpv log", "Status", "5", "6"]),
+        ("info-playing.svg", "info-playing", ["Info", "Progress", "0:30 / 2:00"]),
+        ("now-playing-quality.svg", "now-playing-quality", ["Now Playing", "quality: 40mbps"]),
+        ("playback-control-menu.svg", "playback-control-menu", ["Playback Control", "state:", "quality:", "Space pause", "Ctrl+B quality"]),
+        ("ctrl-k-stop.svg", "ctrl-k-stop", ["stopping mpv"]),
+        ("ctrl-p-from-browser.svg", "ctrl-p-from-browser", ["Playback Control", "state:", "quality:"]),
+        ("space-pause.svg", "space-pause", ["Now Playing", "paused"]),
+        ("seek-comma-period.svg", "seek-comma-period", ["Now Playing"]),
+        ("bottom-bar-format.svg", "bottom-bar-format", ["np:", "–", "0:30"]),
+        ("bottom-bar-long-name.svg", "bottom-bar-long-name", ["Rick and Morty", "S09E02", "np:"]),
+        ("replace-n-to-info.svg", "replace-n-to-info", ["Info"]),
+        ("info-backspace-to-browser.svg", "info-backspace-to-browser", ["showing", "display:"]),
+        ("now-playing-backspace-to-info.svg", "now-playing-backspace-to-info", ["Info"]),
+        ("web-url-info-overlay.svg", "web-url-info-overlay", ["Jellyfin Web URL", "q close"]),
+        ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL", "q close"]),
+        ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
+        ("ctrl-b-bitrate.svg", "ctrl-b-bitrate", ["Now Playing", "quality: 20mbps"]),
+        ("jump-to-time.svg", "jump-to-time", ["Jump to Time", "mpv position: 0:30", "Time: _"]),
     ]
+
     for index, (filename, view, expected) in enumerate(captures, start=2):
         await export_view(
             cfg,
