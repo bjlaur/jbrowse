@@ -2918,7 +2918,7 @@ class BrowseApp(App[object]):
             return
         if self._bottom_bar_poll_stop:
             return
-        self.update_bottom_status()
+        self.bottom_status.update(self.bottom_status_text())
         self.set_timer(1.0, self._poll_bottom_bar)
 
     def _render_now_playing(self) -> None:
