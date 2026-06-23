@@ -62,6 +62,17 @@ Shift+Enter  direct playback
 
 ## Pending (after IPC features)
 
+### Replace prompt wording
+- User doesn't like current wording: "Already playing" / "Play this instead?" / "Enter → replace  Backspace → cancel"
+- Need to revise — consider something shorter
+- Panel title is "Replace Playback" — could also be improved
+
+### Jump to time feature
+- New feature needed: allow user to jump to a specific time in the current file
+- Bring up a window/overlay where user can type a time or use keyboard to select from a bar
+- Useful because mpv time-pos differs from Jellyfin runtime (transcoding doesn't load all at once)
+- Would restart mpv at the new stream position
+
 ### README screenshot update
 - Next time we do a README fixup, choose the best 10 screenshots from the 28 harness captures
 - Current 8 screenshots in `docs/screenshots/` are all still there (browser, after-ctrl-x, help, info, mpv-log, refreshing, search, subtitles)

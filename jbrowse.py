@@ -1491,6 +1491,7 @@ class BrowseApp(App[object]):
         self._pending_replace_item: Optional[MediaItem] = None
         self._now_playing_poll_stop = False
         self._info_poll_stop = False
+        self._bottom_bar_poll_stop = False
         self.now_playing_scroll = ui_state.now_playing_scroll
         self._quality_index = 0
         self._quality_flash = ""
@@ -1692,6 +1693,8 @@ class BrowseApp(App[object]):
     def _do_start_playback(self, item: MediaItem) -> None:
         self.save_ui_state()
         self._now_playing_poll_stop = False
+        self._bottom_bar_poll_stop = False
+        self._start_bottom_bar_poll()
 
         # If something is playing, use IPC loadfile_replace
         if self.playback_manager.is_active() and self.playback_manager.ipc_socket_path is not None:
@@ -1973,11 +1976,14 @@ class BrowseApp(App[object]):
             return
 
         if event.key == "ctrl+k":
+            self._bottom_bar_poll_stop = True
             if self.playback_manager.stop_active():
                 self.refresh_message = "stopping mpv..."
             else:
                 self.refresh_message = "no active mpv playback"
             self.update_bottom_status()
+            self._bottom_bar_poll_stop = True
+            # Return to info if we were on now_playing, otherwise browser
             if self.page == "now_playing":
                 self._now_playing_poll_stop = True
                 self.page = self.previous_page
@@ -2136,7 +2142,14 @@ class BrowseApp(App[object]):
                 return
 
             if event.key == "enter":
-                self.play_info_item()
+                # If same file is already playing, just go to Now Playing
+                pm_item = self.playback_manager.item
+                if (pm_item is not None and self.info_item is not None
+                        and self.info_item.id == pm_item.id
+                        and self.playback_manager.is_active()):
+                    self.open_now_playing()
+                else:
+                    self.play_info_item()
                 event.stop()
                 return
 
@@ -2894,6 +2907,19 @@ class BrowseApp(App[object]):
             self.set_timer(1.0, self._poll_info)
         else:
             self._info_poll_stop = True
+
+    def _start_bottom_bar_poll(self) -> None:
+        self._bottom_bar_poll_stop = False
+        self.set_timer(1.0, self._poll_bottom_bar)
+
+    def _poll_bottom_bar(self) -> None:
+        if not self.playback_manager.is_active():
+            self._bottom_bar_poll_stop = True
+            return
+        if self._bottom_bar_poll_stop:
+            return
+        self.update_bottom_status()
+        self.set_timer(1.0, self._poll_bottom_bar)
 
     def _render_now_playing(self) -> None:
         if getattr(self, "_web_url_visible", False):
