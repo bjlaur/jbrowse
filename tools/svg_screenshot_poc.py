@@ -205,7 +205,7 @@ async def export_view(
             await pilot.press("s")
             await settle(app, pilot)
         elif view == "help":
-            await pilot.press("f1")
+            await pilot.press("?")
             await settle(app, pilot)
         elif view == "mpv-log":
             app.open_mpv_log()

@@ -33,6 +33,7 @@
 - Do not reintroduce Textual `ListView`/`ListItem` for media rows. The app uses one `Static` widget (`ItemPane`) that renders visible rows only; this is critical for large libraries.
 - `Ctrl+I` is not suitable for info because terminals treat it as Tab.
 - F2 was rejected as an info key. Current behavior is `Enter` for info and `Shift+Enter` for direct playback.
+- **Do not use any F keys (F1–F12).** Textual intercepts them for its own purposes (e.g., F1 opens the Textual command palette). Use `?` for help instead.
 - No `[player]` config yet. `mpv` playback is intentionally simple, with only the lightweight `[mpv] mpv_cmd` command template.
 - Manual and periodic refresh are backgrounded. Keep future refresh work separate from playback architecture.
 - Named themes intentionally ignore inherited `NO_COLOR`; otherwise Textual flattens every theme to monochrome. `Ctrl+X` returns `ThemeCycle` and the outer browser loop rebuilds the app with the next theme; do not replace that flow with direct stylesheet swapping.
@@ -111,5 +112,10 @@ Keep those phases separate. Do not bundle threaded refresh, mpv IPC, and playbac
 - Info page: Progress line uses regex match to avoid duplicate; 1s auto-update poll when viewing playing item.
 - MpV log: line numbers + scroll position indicator (█░ bar + percentage).
 - Replace prompt: "Already playing" / "Play this instead?" / "y play  n cancel".
+- Ctrl+B quality change: seeks back to saved position after loadfile_replace (0.5s delay thread).
+- Replace prompt `n`/backspace: returns to info page (not browser).
+- Web URL overlay: render_info() and _render_now_playing() guard on _web_url_visible.
+- Info page Progress: regex fixed (Progress\s instead of Progress\s*:); _web_url_visible guard added.
+- Harness: 28 captures including new views for all fixed items.
 - Completed: All IPC feature phases (1–6) + playback control menu + all manual testing re-test fixes.
 - Next: Server-side safety guard, audio picker, help text cleanup.
