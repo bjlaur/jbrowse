@@ -161,8 +161,14 @@ async def settle(app: BrowseApp, pilot) -> None:
     for widget in app.screen.walk_children(with_self=True):
         widget._styles_cache.clear()
         widget.refresh(layout=True)
-    await pilot.pause(1.0)
+    await pilot.pause(0.3)
     await pilot.wait_for_scheduled_animations()
+
+
+async def quick_settle(app: BrowseApp, pilot) -> None:
+    """Lightweight settle for views that just pressed a key — skips full style cache clear."""
+    app.render_items()
+    await pilot.pause(0.2)
 
 
 async def export_view(
@@ -194,7 +200,7 @@ async def export_view(
 
         if view == "after-ctrl-x":
             await pilot.press("ctrl+x")
-            await pilot.pause(0.2)
+            await pilot.pause(0.1)
             return app.return_value
 
         if view == "info":
@@ -269,7 +275,7 @@ async def export_view(
             await settle(app, pilot)
             # Wait for the poll timer to fire (1s interval + settle time)
             await pilot.pause(1.5)
-            await settle(app, pilot)
+            await quick_settle(app, pilot)
         elif view == "now-playing-quality":
             _setup_fake_playback(app, demo_item)
             app.open_now_playing()
