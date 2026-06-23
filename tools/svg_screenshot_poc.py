@@ -95,6 +95,11 @@ def parse_args() -> argparse.Namespace:
         help="run real mpv bitrate cycling test: play, cycle quality, verify bitrate via IPC (requires --real)",
     )
     parser.add_argument(
+        "--real-mpv-jump",
+        action="store_true",
+        help="run real mpv jump-to-time test: play, jump to time, verify position via IPC (requires --real)",
+    )
+    parser.add_argument(
         "--view",
         default="",
         help="run only a single capture by view name (e.g. now-playing, replace-prompt, playback-control)",
@@ -307,6 +312,10 @@ async def export_view(
             await settle(app, pilot)
             await pilot.press("ctrl+p")
             await settle(app, pilot)
+        elif view == "jump-to-time":
+            _setup_fake_playback(app, demo_item)
+            await settle(app, pilot)
+            app._open_jump_to_time()
         elif view == "space-pause":
             _setup_fake_playback(app, demo_item)
             app.open_now_playing()
@@ -687,6 +696,8 @@ async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.
 
     # Clean up stale IPC sockets and mpv processes
     import glob
+    import os
+    import subprocess
     for sock in glob.glob("/tmp/jbrowse-mpv-*.sock"):
         os.unlink(sock)
     subprocess.run(["pkill", "-f", "mpv.*jbrowse"], capture_output=True)
@@ -775,6 +786,71 @@ async def run_real_mpv_bitrate_test(cfg, client, item, play_duration: float = 5.
         log("real mpv bitrate test passed")
 
 
+def run_real_mpv_jump_test(cfg, client, item, play_duration: float = 3.0) -> None:
+    """Launch real mpv, jump to a specific time, and verify position via IPC."""
+    log(f"running real mpv jump-to-time test (play_duration={play_duration}s)")
+
+    if client.auth is None:
+        log("logging in to Jellyfin for real mpv jump test")
+        client.login()
+
+    app = BrowseApp(
+        cfg, client, [item], "01-jbrowse-amber-dim", make_state(cfg, item),
+        write_cache_on_start=False, auto_refresh_on_start=False,
+    )
+
+    manager = app.playback_manager
+    error = manager.start_background(item)
+    if error:
+        raise RuntimeError(f"real mpv failed to start: {error}")
+    if not manager.is_active():
+        raise RuntimeError("real mpv did not start")
+
+    log(f"real mpv started; letting it play for {play_duration}s")
+    time.sleep(play_duration)
+
+    # Record initial position
+    pos_before = manager.ipc_get_property("time-pos") or 0
+    log(f"position before jump: {pos_before:.1f}s")
+
+    # Jump to 30 seconds using IPC seek
+    jump_seconds = 30.0
+    manager.seek_to(jump_seconds)
+    time.sleep(2.0)
+
+    # Verify position is near the jump target
+    pos_after = manager.ipc_get_property("time-pos") or 0
+    log(f"position after jump: {pos_after:.1f}s")
+
+    if abs(pos_after - jump_seconds) > 5.0:
+        raise RuntimeError(
+            f"position after jump is wrong: expected ~{jump_seconds:.0f}s, got {pos_after:.1f}s"
+        )
+
+    # Jump to a different time (1 minute)
+    jump_seconds2 = 60.0
+    manager.seek_to(jump_seconds2)
+    time.sleep(2.0)
+
+    pos_after2 = manager.ipc_get_property("time-pos") or 0
+    log(f"position after 2nd jump: {pos_after2:.1f}s")
+
+    if abs(pos_after2 - jump_seconds2) > 5.0:
+        raise RuntimeError(
+            f"position after 2nd jump is wrong: expected ~{jump_seconds2:.0f}s, got {pos_after2:.1f}s"
+        )
+
+    # Stop playback
+    manager.stop_active()
+    deadline = time.monotonic() + 5
+    while manager.is_active() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if manager.is_active():
+        raise RuntimeError("real mpv did not finish after stop")
+
+    log("real mpv jump test passed")
+
+
 async def main_async(args: argparse.Namespace) -> int:
     if args.real:
         cfg, client, items = real_demo_data()
@@ -801,6 +877,12 @@ async def main_async(args: argparse.Namespace) -> int:
         if not args.real:
             raise RuntimeError("--real-mpv-bitrate requires --real (needs real Jellyfin cache and server)")
         await run_real_mpv_bitrate_test(cfg, client, demo_item, args.play_duration)
+        return 0
+
+    if args.real_mpv_jump:
+        if not args.real:
+            raise RuntimeError("--real-mpv-jump requires --real (needs real Jellyfin cache and server)")
+        run_real_mpv_jump_test(cfg, client, demo_item, args.play_duration)
         return 0
 
     themes = discover_themes(theme_start)
@@ -856,6 +938,7 @@ async def main_async(args: argparse.Namespace) -> int:
             "info-progress-auto-update": ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
             "ctrl-n-now-playing": ("ctrl-n-now-playing.svg", "ctrl-n-now-playing", ["Now Playing", "playing", "state:"]),
             "ctrl-b-bitrate": ("ctrl-b-bitrate.svg", "ctrl-b-bitrate", ["Now Playing", "quality: 20mbps"]),
+            "jump-to-time": ("jump-to-time.svg", "jump-to-time", ["Jump to Time", "mpv position: 0:30", "Time: _"]),
         }
         if args.view not in view_map:
             print(f"Unknown --view {args.view!r}. Available: {', '.join(sorted(view_map))}", file=sys.stderr)
@@ -942,6 +1025,7 @@ async def main_async(args: argparse.Namespace) -> int:
         ("web-url-now-playing-overlay.svg", "web-url-now-playing-overlay", ["Jellyfin Web URL", "q close"]),
         ("info-progress-auto-update.svg", "info-progress-auto-update", ["Info", "Progress", "0:30 / 2:00"]),
         ("ctrl-b-bitrate.svg", "ctrl-b-bitrate", ["Now Playing", "quality: 20mbps"]),
+        ("jump-to-time.svg", "jump-to-time", ["Jump to Time", "mpv position: 0:30", "Time: _"]),
     ]
 
     for index, (filename, view, expected) in enumerate(captures, start=2):

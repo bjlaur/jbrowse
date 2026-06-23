@@ -1491,12 +1491,14 @@ class BrowseApp(App[object]):
         self._pending_replace_item: Optional[MediaItem] = None
         self._now_playing_poll_stop = False
         self._info_poll_stop = False
+        self._bottom_bar_poll_stop = False
         self.now_playing_scroll = ui_state.now_playing_scroll
         self._quality_index = 0
         self._quality_flash = ""
         self._quality_flash_until = 0.0
         self._playback_control_visible = False
         self._web_url_visible = False
+        self._jump_to_time_visible = False
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.refresh_thread: Optional[threading.Thread] = None
         now = time.monotonic()
@@ -1692,6 +1694,8 @@ class BrowseApp(App[object]):
     def _do_start_playback(self, item: MediaItem) -> None:
         self.save_ui_state()
         self._now_playing_poll_stop = False
+        self._bottom_bar_poll_stop = False
+        self._start_bottom_bar_poll()
 
         # If something is playing, use IPC loadfile_replace
         if self.playback_manager.is_active() and self.playback_manager.ipc_socket_path is not None:
@@ -1973,11 +1977,14 @@ class BrowseApp(App[object]):
             return
 
         if event.key == "ctrl+k":
+            self._bottom_bar_poll_stop = True
             if self.playback_manager.stop_active():
                 self.refresh_message = "stopping mpv..."
             else:
                 self.refresh_message = "no active mpv playback"
             self.update_bottom_status()
+            self._bottom_bar_poll_stop = True
+            # Return to info if we were on now_playing, otherwise browser
             if self.page == "now_playing":
                 self._now_playing_poll_stop = True
                 self.page = self.previous_page
@@ -2020,6 +2027,11 @@ class BrowseApp(App[object]):
 
         if self._playback_control_visible:
             if self._handle_playback_control_key(event.key):
+                event.stop()
+            return
+
+        if getattr(self, "_jump_to_time_visible", False):
+            if self._handle_jump_to_time_key(event.key):
                 event.stop()
             return
 
@@ -2087,6 +2099,10 @@ class BrowseApp(App[object]):
                 self.open_mpv_log()
                 event.stop()
                 return
+            if typed == "j" or event.key == "j":
+                self._open_jump_to_time()
+                event.stop()
+                return
             if typed == "w" or event.key == "w":
                 self._show_web_url()
                 event.stop()
@@ -2094,6 +2110,9 @@ class BrowseApp(App[object]):
             if event.key in {"up", "down", "pageup", "pagedown", "home", "end"}:
                 self._scroll_now_playing(event.key)
                 event.stop()
+                return
+            # Let global handlers pass through
+            if event.key in {"ctrl+n", "ctrl+b", "ctrl+p", "ctrl+k", "ctrl+g"}:
                 return
             event.stop()
             return
@@ -2136,7 +2155,14 @@ class BrowseApp(App[object]):
                 return
 
             if event.key == "enter":
-                self.play_info_item()
+                # If same file is already playing, just go to Now Playing
+                pm_item = self.playback_manager.item
+                if (pm_item is not None and self.info_item is not None
+                        and self.info_item.id == pm_item.id
+                        and self.playback_manager.is_active()):
+                    self.open_now_playing()
+                else:
+                    self.play_info_item()
                 event.stop()
                 return
 
@@ -2869,6 +2895,10 @@ class BrowseApp(App[object]):
             # Don't overwrite the web URL overlay; just re-arm the timer
             self.set_timer(1.0, self._poll_now_playing)
             return
+        if getattr(self, "_jump_to_time_visible", False):
+            # Don't overwrite the jump-to-time overlay; just re-arm the timer
+            self.set_timer(1.0, self._poll_now_playing)
+            return
         self._render_now_playing()
         self.set_timer(1.0, self._poll_now_playing)
 
@@ -2895,8 +2925,23 @@ class BrowseApp(App[object]):
         else:
             self._info_poll_stop = True
 
+    def _start_bottom_bar_poll(self) -> None:
+        self._bottom_bar_poll_stop = False
+        self.set_timer(1.0, self._poll_bottom_bar)
+
+    def _poll_bottom_bar(self) -> None:
+        if not self.playback_manager.is_active():
+            self._bottom_bar_poll_stop = True
+            return
+        if self._bottom_bar_poll_stop:
+            return
+        self.bottom_status.update(self.bottom_status_text())
+        self.set_timer(1.0, self._poll_bottom_bar)
+
     def _render_now_playing(self) -> None:
         if getattr(self, "_web_url_visible", False):
+            return
+        if getattr(self, "_jump_to_time_visible", False):
             return
         self.focus_overlay()
         text = Text()
@@ -2976,6 +3021,106 @@ class BrowseApp(App[object]):
     def _scroll_now_playing(self, key: str) -> None:
         # Minimal scroll support for now
         pass
+
+    def _open_jump_to_time(self) -> None:
+        self._jump_to_time_visible = True
+        self._jump_to_time_input = ""
+        self._render_jump_to_time()
+
+    def _render_jump_to_time(self) -> None:
+        self.focus_overlay()
+        text = Text()
+        text.append("Jump to Time\n\n", style="bold")
+
+        pm_item = self.playback_manager.item
+        if pm_item is None or not self.playback_manager.is_active():
+            text.append("No active playback.\n", style="dim")
+        else:
+            title = pm_item.title
+            text.append(f"{title}\n\n")
+
+            ipc_pos = self.playback_manager.ipc_get_property("time-pos") or 0
+            ipc_dur = self.playback_manager.ipc_get_property("duration") or 0
+            jellyfin_duration = pm_item.runtime_ticks / TICKS_PER_SECOND if pm_item.runtime_ticks else 0
+
+            pos_str = format_seconds(ipc_pos)
+            dur_str = format_seconds(ipc_dur) if ipc_dur else "?"
+            jellyfin_dur_str = format_seconds(jellyfin_duration) if jellyfin_duration else "?"
+
+            text.append(f"mpv position: {pos_str}\n")
+            text.append(f"mpv duration: {dur_str}\n")
+            text.append(f"Jellyfin duration: {jellyfin_dur_str}\n\n")
+
+            # Visual timeline bar (uses Jellyfin duration as total)
+            total_dur = jellyfin_duration or ipc_dur
+            bar_width = 40
+            if total_dur and total_dur > 0:
+                filled = int(bar_width * ipc_pos / total_dur)
+                filled = max(0, min(filled, bar_width))
+                bar = "█" * filled + "░" * (bar_width - filled)
+                text.append(f"  [{bar}]  {pos_str} / {jellyfin_dur_str}\n\n")
+            else:
+                text.append(f"  {pos_str}\n\n")
+
+            # Text input for time
+            typed = getattr(self, "_jump_to_time_input", "")
+            text.append(f"  Time: {typed}_\n\n", style="bold")
+
+            text.append("←/→ seek ±10s  numbers: type time  Enter: jump\n")
+            text.append("Format: MM:SS or HH:MM:SS (e.g. 85:00 or 1:23:45)\n")
+            text.append("q cancel\n")
+
+        self.listbox.update(self.overlay_panel(text, "Jump to Time"))
+
+    @staticmethod
+    def _parse_time_string(time_str: str) -> Optional[float]:
+        """Parse a time string like '1:23:45' or '85:00' into seconds."""
+        parts = time_str.strip().split(":")
+        try:
+            if len(parts) == 2:
+                minutes, seconds = int(parts[0]), int(parts[1])
+                return minutes * 60 + seconds
+            elif len(parts) == 3:
+                hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+                return hours * 3600 + minutes * 60 + seconds
+        except (ValueError, IndexError):
+            pass
+        return None
+
+    def _handle_jump_to_time_key(self, key: str) -> bool:
+        if key in {"q", "escape"}:
+            self._jump_to_time_visible = False
+            self._render_now_playing()
+            return True
+        if key == "backspace":
+            # Delete last character from input
+            self._jump_to_time_input = self._jump_to_time_input[:-1]
+            self._render_jump_to_time()
+            return True
+        if key == "enter":
+            time_str = getattr(self, "_jump_to_time_input", "")
+            seconds = self._parse_time_string(time_str)
+            if seconds is not None:
+                # Use mpv IPC seek to jump to the specified time
+                self.playback_manager.seek_to(seconds)
+            self._jump_to_time_visible = False
+            self._render_now_playing()
+            return True
+        if key == "left":
+            self.playback_manager.seek_relative(-10)
+            self._render_jump_to_time()
+            return True
+        if key == "right":
+            self.playback_manager.seek_relative(10)
+            self._render_jump_to_time()
+            return True
+        # Accumulate typed characters for time input
+        typed = getattr(key, "character", None)
+        if typed and typed in "0123456789:":
+            self._jump_to_time_input += typed
+            self._render_jump_to_time()
+            return True
+        return False
 
     def open_mpv_log(self) -> None:
         if self.page in {"browser", "info"}:

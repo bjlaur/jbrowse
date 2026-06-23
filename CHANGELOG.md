@@ -29,10 +29,38 @@ Documentation:
 - Updated AGENTS.md with latest fixes and no-F-keys policy.
 - Created `claude-didn't-listen.md` report documenting missed harness tests.
 
+### Agent 2 — Manual testing fixes round 2 (branch: ipc-retest-round2-fixes)
+
+Code changes (jbrowse.py):
+- Bottom bar live update: added `_start_bottom_bar_poll()` and `_poll_bottom_bar()` timer that updates `bottom_status` widget every second during playback (previously required cursor movement).
+- Ctrl+K from Now Playing: stops playback and returns to `previous_page` (info) instead of hardcoded browser.
+- Same-item Enter: pressing Enter on the currently playing item opens Now Playing directly instead of showing replace prompt.
+- Jump-to-time feature: press `j` on Now Playing page to open time jump overlay. Supports MM:SS and HH:MM:SS formats, ←/→ seek ±10s, Enter to jump, q to cancel. Uses IPC `seek_to()`.
+- Overlay guards: `_poll_now_playing()` and `_render_now_playing()` skip re-rendering when `_jump_to_time_visible` is set.
+
+Harness changes (tools/svg_screenshot_poc.py):
+- Added `--real-mpv-jump` flag and `run_real_mpv_jump_test()`: plays real item, jumps to 30s and 60s, verifies position via IPC.
+- Added `jump-to-time` fake capture: verifies overlay renders with timeline bar and time input.
+- Added `ctrl-b-bitrate` fake capture: cycles quality twice, verifies quality label updates.
+
+Documentation:
+- Updated `ipc-retest-checklist.md` with round 2 agent notes and re-test results.
+- Updated `TODO.md` with completed items.
+
+### Ctrl+P fix (other agent)
+- Changed `use_command_palette = False` to `ENABLE_COMMAND_PALETTE = False` (correct Textual API).
+- Harness capture updated to verify Ctrl+P opens playback control menu.
+
+### Harness optimization (other agent)
+- Reduced `settle()` pause from 1.0s → 0.3s.
+- Added `quick_settle()` for views that just pressed a key (skips full style cache clear).
+- Reduced Ctrl+X theme cycle pause from 0.2s → 0.1s.
+- Full harness: 1m24s → 31s (62% faster), all 31 captures pass.
+
 Known issues:
-- `--real` test suite has issues (other agent investigating).
+- `--real-mpv-bitrate` test fails: "IPC not connected after 5s" — bitrate test uses `app.run_test()` harness which may not set up IPC socket correctly. Basic `--ipc-only` smoke test passes fine.
+- `--real-mpv-jump` test not yet run.
 - Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
-- Ctrl+P may still show Textual command palette on some terminals (needs real-keyboard verification).
 
 ### Phase 1 — Low-level mpv IPC layer
 - `PlaybackManager` connects to mpv via `--input-ipc-server` Unix socket.

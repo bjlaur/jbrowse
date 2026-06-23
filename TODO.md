@@ -57,10 +57,29 @@ Shift+Enter  direct playback
 - [x] Harness: 28 captures, all pass; new views for all fixed items
 - [x] Created ipc-retest-checklist.md with pass/fail status from manual testing
 - [x] Created claude-didn't-listen.md report documenting missed harness tests
+- [x] Bottom bar live poll: `_start_bottom_bar_poll()` timer updates widget every second
+- [x] Ctrl+K from Now Playing: returns to previous_page (info) instead of browser
+- [x] Same-item Enter: opens Now Playing directly, skips replace prompt
+- [x] Jump-to-time feature: `j` key on Now Playing, overlay with IPC seek_to()
+- [x] Jump-to-time overlay guards in _poll_now_playing() and _render_now_playing()
+- [x] `--real-mpv-jump` test: verifies IPC seek to 30s and 60s
+- [x] `ctrl-b-bitrate` and `jump-to-time` harness captures
+- [x] Round 3 retest requests added to ipc-retest-checklist.md
 
 ---
 
 ## Pending (after IPC features)
+
+### Replace prompt wording
+- User doesn't like current wording: "Already playing" / "Play this instead?" / "Enter → replace  Backspace → cancel"
+- Need to revise — consider something shorter
+- Panel title is "Replace Playback" — could also be improved
+
+### Jump to time feature
+- ~~New feature needed: allow user to jump to a specific time in the current file~~
+- ✅ Implemented: press `j` on Now Playing page, type MM:SS or HH:MM:SS, Enter to jump via IPC seek_to()
+- Overlay guards prevent poll timer from overwriting the jump-to-time UI
+- `--real-mpv-jump` test verifies real IPC seek works correctly
 
 ### README screenshot update
 - Next time we do a README fixup, choose the best 10 screenshots from the 28 harness captures
