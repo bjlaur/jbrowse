@@ -5,7 +5,7 @@
 | Directory | Status | Description |
 |-----------|--------|-------------|
 | [`release-0.0.34/`](release-0.0.34/) | ✅ Released | IPC Features — mpv IPC, Now Playing, bitrate cycling, jump-to-time, replace prompt |
-| [`release-0.0.35/`](release-0.0.35/) | 🔨 In Progress | Fast follower — small UI fixes (help text, bottom bar progress) |
+| [`release-0.0.35/`](release-0.0.35/) | 🔨 In Progress | Fast follower — small UI fixes (help text, bottom bar progress, info auto-update, truncation) |
 | [`future-release/`](future-release/) | 📋 Planning | Larger features — audio picker, file splitting, Arch packaging |
 
 ## Per-Release Contents
