@@ -65,6 +65,20 @@ Fix for `--real-mpv-jump`:
 Known issues:
 - Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
 
+### For-next-release fixes (branch: ipc-testing-fixes)
+
+Code changes (jbrowse.py):
+- Help key: changed from `Ctrl+L`/`?` to `Ctrl+H` (removed `?` binding entirely per user request).
+- Bottom bar poll: `_poll_bottom_bar()` now calls `update_bottom_status()` (page-aware) instead of `bottom_status_text()` directly — fixes subtitle status being overwritten during playback.
+- MpV log scroll indicator: changed from `█░` block characters to `[####----] 42%` text format — renders correctly in SVG export.
+- Now Playing progress bar: same `█░` → `[###---]` text format for SVG safety.
+- Playback-end page return: when mpv closes while on Now Playing page, returns to `previous_page` (info) instead of hardcoded browser.
+
+Documentation:
+- Created `for-next-release.md` tracking doc for deferred items.
+- Updated README.md help key binding.
+- Updated AGENTS.md and TODO.md.
+
 ### Ctrl+P fix (other agent)
 - Changed `use_command_palette = False` to `ENABLE_COMMAND_PALETTE = False` (correct Textual API).
 - Harness capture updated to verify Ctrl+P opens playback control menu.

@@ -69,6 +69,10 @@ Shift+Enter  direct playback
 - [x] `--real-mpv-jump` test fixed: wait for mpv to start, increased timeouts
 - [x] Position preservation verified: video does NOT restart on quality change
 - [x] 20→20→20 seek test passes
+- [x] Help key: changed from `Ctrl+L`/`?` to `Ctrl+H`
+- [x] Bottom bar poll: page-aware (respects subtitle status on info page)
+- [x] MpV log scroll indicator: text-based `[####----] 42%` (SVG-safe)
+- [x] Now Playing playback-end: returns to `previous_page` (info) not browser
 
 ---
 
