@@ -29,8 +29,26 @@ Documentation:
 - Updated AGENTS.md with latest fixes and no-F-keys policy.
 - Created `claude-didn't-listen.md` report documenting missed harness tests.
 
+### Agent 2 — Manual testing fixes round 2 (branch: ipc-retest-round2-fixes)
+
+Code changes (jbrowse.py):
+- Bottom bar live update: added `_start_bottom_bar_poll()` and `_poll_bottom_bar()` timer that updates `bottom_status` widget every second during playback (previously required cursor movement).
+- Ctrl+K from Now Playing: stops playback and returns to `previous_page` (info) instead of hardcoded browser.
+- Same-item Enter: pressing Enter on the currently playing item opens Now Playing directly instead of showing replace prompt.
+- Jump-to-time feature: press `j` on Now Playing page to open time jump overlay. Supports MM:SS and HH:MM:SS formats, ←/→ seek ±10s, Enter to jump, q to cancel. Uses IPC `seek_to()`.
+- Overlay guards: `_poll_now_playing()` and `_render_now_playing()` skip re-rendering when `_jump_to_time_visible` is set.
+
+Harness changes (tools/svg_screenshot_poc.py):
+- Added `--real-mpv-jump` flag and `run_real_mpv_jump_test()`: plays real item, jumps to 30s and 60s, verifies position via IPC.
+- Added `jump-to-time` fake capture: verifies overlay renders with timeline bar and time input.
+- Added `ctrl-b-bitrate` fake capture: cycles quality twice, verifies quality label updates.
+
+Documentation:
+- Updated `ipc-retest-checklist.md` with round 2 agent notes and re-test results.
+- Updated `TODO.md` with completed items.
+
 Known issues:
-- `--real` test suite has issues (other agent investigating).
+- `--real` test suite may have issues on `ipc-features` branch (other agent's merge removed some features).
 - Progress display uses Jellyfin runtime but position still comes from mpv IPC (can differ from Jellyfin runtime during transcoding).
 - Ctrl+P may still show Textual command palette on some terminals (needs real-keyboard verification).
 
