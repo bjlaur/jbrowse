@@ -1,10 +1,57 @@
 # IPC Fast Follower — 0.0.35
 
-Small fixes and polish that don't require much discussion. Quick wins after the 0.0.34 release.
+Small fixes and polish deferred from 0.0.34. Quick wins that don't require much discussion.
 
 ---
 
-## Small UI Fixes
+## From Retest Checklist (Round 4 — user said "next release")
+
+### Ctrl+P Textual Palette Verification
+**Source**: Retest #5 — user said "don't fix this one, just add to known issues for next release"
+
+**Issue**: Can't fully confirm Textual palette is suppressed without physical keyboard. Harness passes but manual test was FAIL.
+
+**Action**: Verify with real keyboard that `ENABLE_COMMAND_PALETTE = False` actually prevents Textual palette. If it doesn't work, investigate further.
+
+---
+
+### Info Progress Auto-Update Visibility
+**Source**: Retest #61 — user said "todo - take care of in next release"
+
+**Issue**: Harness passes but manual test fails. Timer-based refresh may not be visible without cursor movement.
+
+**Action**: Investigate why manual test sees no auto-update. May need:
+- Longer poll interval
+- A visual indicator (blinking cursor, timestamp)
+- Confirming `self.refresh()` actually triggers a screen redraw
+
+**Files**: `jbrowse.py` (`_poll_info()`)
+
+---
+
+### Long Filename Truncation Testing
+**Source**: Retest #66 — user said "UHM.. I asked you for how to test this. did you ever tell me?"
+
+**Issue**: User couldn't figure out how to test truncation. No fixture data with real long filenames.
+
+**Action**: Add items with deliberately long filenames to fixture data. Verify bottom bar truncation shows `…` correctly.
+
+Example long filename: `Rick.and.Morty.S09E02.Ricks.Days.Seven.Nights.1080p.AMZN.WEB-DL.DDP5.1.H.264-Kitsune.mkv` → should show as `Rick and Morty – S09E02` in bottom bar.
+
+**Files**: `tools/fake_cache_data.json.zst` (add long-name test items), possibly `jbrowse.py` (truncation logic review)
+
+---
+
+### Ctrl+B Position Preserved (Manual Test Verification)
+**Source**: Retest #60 — manual test was skipped
+
+**Issue**: User was frustrated — "the hell you can't" verify position preservation. The `--real --real-mpv-bitrate` automated test covers this, but manual test was never done.
+
+**Action**: Verify the existing `--real --real-mpv-bitrate` test adequately covers position preservation. If confident, mark as done. Otherwise write a simpler manual-verifiable test.
+
+---
+
+## From TODO.md (Small Fixes, No Discussion Needed)
 
 ### Better Help Text / Key Map Cleanup
 **Effort**: Small (~50 lines reorganization)
@@ -30,33 +77,8 @@ Now Playing page already has a full bar; this would be a compact version for the
 
 ---
 
-### Info Progress Auto-Update Visibility
-**Effort**: Small
+## Deferred (Need User Input — NOT Fast Follower)
 
-**Current**: Info page Progress line has a 1-second auto-update poll with `self.refresh()`, but it may not be visibly obvious.
-**Goal**: Investigate whether the timer-based refresh is actually visible to the user. May need:
-- A longer poll interval
-- A visual indicator (blinking cursor, timestamp)
-- Confirming the refresh actually triggers a screen redraw
+These need discussion with the user before implementing:
 
-**Files**: `jbrowse.py` (info page poll logic)
-
----
-
-### Long Filename Truncation Testing
-**Effort**: Small (fixture data + verification)
-
-**Current**: User couldn't figure out how to test truncation. No fixture data with real long filenames.
-**Goal**: Add a few items with deliberately long filenames to the fixture data. Verify bottom bar truncation shows `…` correctly.
-
-**Files**: `tools/fake_cache_data.json.zstr` (add long-name test items), possibly `jbrowse.py` (truncation logic review)
-
----
-
-## Known Issues to Revisit (Need User Input)
-
-These are deferred — they need discussion with the user before implementing:
-
-- **Replace prompt wording** — User doesn't like current phrasing but hasn't decided on new wording. Panel title "Replace Playback" could also be improved.
-- **Ctrl+P Textual palette** — Can't fully confirm Textual palette is suppressed without physical keyboard. Verify with real keyboard next release.
-- **Ctrl+B position preserved (manual test)** — Was skipped. Verify the existing `--real --real-mpv-bitrate` test covers this adequately.
+- **Replace prompt wording** (#25/#59) — User doesn't like current phrasing but hasn't decided on new wording. Panel title "Replace Playback" could also be improved.

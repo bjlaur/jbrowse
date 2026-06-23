@@ -113,6 +113,7 @@ Shift+Enter  direct playback
 ### Better help text / key map cleanup
 - Suggested sections: Browsing, Search, Info, Playback, Themes, App
 - Revisit reverse theme cycling (`Ctrl+Shift+X` not reliably distinguishable from `Ctrl+X`)
+- Moved to fast follower (`docs/release-0.0.35/ipc-fastfollower-feature.md`)
 
 ### Split the giant file
 - After app stabilizes further (after PlaybackManager, Now Playing exist)
