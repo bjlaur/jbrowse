@@ -1498,6 +1498,7 @@ class BrowseApp(App[object]):
         self._quality_flash_until = 0.0
         self._playback_control_visible = False
         self._web_url_visible = False
+        self._jump_to_time_visible = False
         self.refresh_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.refresh_thread: Optional[threading.Thread] = None
         now = time.monotonic()
@@ -2029,6 +2030,11 @@ class BrowseApp(App[object]):
                 event.stop()
             return
 
+        if getattr(self, "_jump_to_time_visible", False):
+            if self._handle_jump_to_time_key(event.key):
+                event.stop()
+            return
+
         if event.key == "ctrl+shift+x":
             self.save_ui_state()
             self.exit(ThemeCycle(direction=-1))
@@ -2093,6 +2099,10 @@ class BrowseApp(App[object]):
                 self.open_mpv_log()
                 event.stop()
                 return
+            if typed == "j" or event.key == "j":
+                self._open_jump_to_time()
+                event.stop()
+                return
             if typed == "w" or event.key == "w":
                 self._show_web_url()
                 event.stop()
@@ -2100,6 +2110,9 @@ class BrowseApp(App[object]):
             if event.key in {"up", "down", "pageup", "pagedown", "home", "end"}:
                 self._scroll_now_playing(event.key)
                 event.stop()
+                return
+            # Let global handlers pass through
+            if event.key in {"ctrl+n", "ctrl+b", "ctrl+p", "ctrl+k", "ctrl+g"}:
                 return
             event.stop()
             return
@@ -3002,6 +3015,114 @@ class BrowseApp(App[object]):
     def _scroll_now_playing(self, key: str) -> None:
         # Minimal scroll support for now
         pass
+
+    def _open_jump_to_time(self) -> None:
+        self._jump_to_time_visible = True
+        self._jump_to_time_input = ""
+        self._render_jump_to_time()
+
+    def _render_jump_to_time(self) -> None:
+        self.focus_overlay()
+        text = Text()
+        text.append("Jump to Time\n\n", style="bold")
+
+        pm_item = self.playback_manager.item
+        if pm_item is None or not self.playback_manager.is_active():
+            text.append("No active playback.\n", style="dim")
+        else:
+            title = pm_item.title
+            text.append(f"{title}\n\n")
+
+            ipc_pos = self.playback_manager.ipc_get_property("time-pos") or 0
+            ipc_dur = self.playback_manager.ipc_get_property("duration") or 0
+            jellyfin_duration = pm_item.runtime_ticks / TICKS_PER_SECOND if pm_item.runtime_ticks else 0
+
+            pos_str = format_seconds(ipc_pos)
+            dur_str = format_seconds(ipc_dur) if ipc_dur else "?"
+            jellyfin_dur_str = format_seconds(jellyfin_duration) if jellyfin_duration else "?"
+
+            text.append(f"mpv position: {pos_str}\n")
+            text.append(f"mpv duration: {dur_str}\n")
+            text.append(f"Jellyfin duration: {jellyfin_dur_str}\n\n")
+
+            # Visual timeline bar (uses Jellyfin duration as total)
+            total_dur = jellyfin_duration or ipc_dur
+            bar_width = 40
+            if total_dur and total_dur > 0:
+                filled = int(bar_width * ipc_pos / total_dur)
+                filled = max(0, min(filled, bar_width))
+                bar = "█" * filled + "░" * (bar_width - filled)
+                text.append(f"  [{bar}]  {pos_str} / {jellyfin_dur_str}\n\n")
+            else:
+                text.append(f"  {pos_str}\n\n")
+
+            # Text input for time
+            typed = getattr(self, "_jump_to_time_input", "")
+            text.append(f"  Time: {typed}_\n\n", style="bold")
+
+            text.append("←/→ seek ±10s  numbers: type time  Enter: jump\n")
+            text.append("Format: MM:SS or HH:MM:SS (e.g. 85:00 or 1:23:45)\n")
+            text.append("q cancel\n")
+
+        self.listbox.update(self.overlay_panel(text, "Jump to Time"))
+
+    @staticmethod
+    def _parse_time_string(time_str: str) -> Optional[float]:
+        """Parse a time string like '1:23:45' or '85:00' into seconds."""
+        parts = time_str.strip().split(":")
+        try:
+            if len(parts) == 2:
+                minutes, seconds = int(parts[0]), int(parts[1])
+                return minutes * 60 + seconds
+            elif len(parts) == 3:
+                hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+                return hours * 3600 + minutes * 60 + seconds
+        except (ValueError, IndexError):
+            pass
+        return None
+
+    def _handle_jump_to_time_key(self, key: str) -> bool:
+        if key in {"q", "escape"}:
+            self._jump_to_time_visible = False
+            self._render_now_playing()
+            return True
+        if key == "backspace":
+            # Delete last character from input
+            self._jump_to_time_input = self._jump_to_time_input[:-1]
+            self._render_jump_to_time()
+            return True
+        if key == "enter":
+            time_str = getattr(self, "_jump_to_time_input", "")
+            seconds = self._parse_time_string(time_str)
+            if seconds is not None:
+                item = self.playback_manager.item
+                if item is not None:
+                    # Use loadfile_replace to restart mpv at new position
+                    url = self.client.stream_url(item)
+                    # Add start position to URL
+                    if "?" in url:
+                        url += f"&StartTimeTicks={int(seconds * TICKS_PER_SECOND)}"
+                    else:
+                        url += f"?StartTimeTicks={int(seconds * TICKS_PER_SECOND)}"
+                    self.playback_manager.loadfile_replace(url)
+            self._jump_to_time_visible = False
+            self._render_now_playing()
+            return True
+        if key == "left":
+            self.playback_manager.seek_relative(-10)
+            self._render_jump_to_time()
+            return True
+        if key == "right":
+            self.playback_manager.seek_relative(10)
+            self._render_jump_to_time()
+            return True
+        # Accumulate typed characters for time input
+        typed = getattr(key, "character", None)
+        if typed and typed in "0123456789:":
+            self._jump_to_time_input += typed
+            self._render_jump_to_time()
+            return True
+        return False
 
     def open_mpv_log(self) -> None:
         if self.page in {"browser", "info"}:
