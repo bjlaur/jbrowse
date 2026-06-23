@@ -65,6 +65,10 @@ Shift+Enter  direct playback
 - [x] `--real-mpv-jump` test: verifies IPC seek to 30s and 60s
 - [x] `ctrl-b-bitrate` and `jump-to-time` harness captures
 - [x] Round 3 retest requests added to ipc-retest-checklist.md
+- [x] `--real-mpv-bitrate` test fixed: hybrid approach (start playback before Textual harness)
+- [x] `--real-mpv-jump` test fixed: wait for mpv to start, increased timeouts
+- [x] Position preservation verified: video does NOT restart on quality change
+- [x] 20→20→20 seek test passes
 
 ---
 
